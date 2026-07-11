@@ -14,6 +14,8 @@ const canvas = document.getElementById("scene");
 const overlay = document.getElementById("overlay");
 const audioIndicator = document.getElementById("audio-indicator");
 const cutsceneHud = document.getElementById("cutscene-hud");
+const staminaEl = document.getElementById("stamina");
+const staminaFill = document.getElementById("stamina-fill");
 
 // Renderer.
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -28,15 +30,44 @@ scene.fog = new THREE.Fog(CONFIG.colors.fog, CONFIG.fogNear, CONFIG.fogFar);
 // Camera.
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 200);
 
-// Lighting. Emissive ceiling panels carry the look; these light the geometry.
-const hemi = new THREE.HemisphereLight(CONFIG.colors.lightPanel, CONFIG.colors.carpet, 0.55);
+// Lighting. A modest hemisphere gives base visibility so the gaps between the
+// (now sparse) fixtures aren't pitch black.
+const hemi = new THREE.HemisphereLight(CONFIG.colors.lightPanel, CONFIG.colors.carpet, 0.32);
 scene.add(hemi);
 
-// A point light rides with the player so nearby pillars/walls are lit while
-// distance falls off into fog — constant light count regardless of world size.
-const playerLight = new THREE.PointLight(CONFIG.colors.lightPanel, 14, CONFIG.fogFar, 1.4);
-playerLight.position.set(0, CONFIG.wallHeight - 0.3, 0);
-scene.add(playerLight);
+// A pool of real point-lights, reassigned each frame to the fixtures nearest the
+// player. Sitting a little below the ceiling, they pool bright light on the
+// floor without washing out the ceiling directly overhead. Sparse fixtures mean
+// the pool is rarely full, so this stays cheap.
+const lightPool = [];
+for (let i = 0; i < CONFIG.maxActiveLights; i++) {
+  const l = new THREE.PointLight(CONFIG.colors.lightPanel, 0, CONFIG.lightRange, CONFIG.lightDecay);
+  l.visible = false;
+  scene.add(l);
+  lightPool.push(l);
+}
+
+// Assign the nearest fixtures to the pool and light them at the given intensity.
+function updateLights(px, pz, intensity) {
+  const lights = world.collectLights();
+  for (let i = 0; i < lights.length; i++) {
+    const p = lights[i];
+    p._d = (p.x - px) * (p.x - px) + (p.z - pz) * (p.z - pz);
+  }
+  lights.sort((a, b) => a._d - b._d);
+  const n = Math.min(lightPool.length, lights.length);
+  for (let i = 0; i < lightPool.length; i++) {
+    const l = lightPool[i];
+    if (i < n) {
+      const p = lights[i];
+      l.position.set(p.x, CONFIG.wallHeight - 0.6, p.z);
+      l.intensity = CONFIG.lightIntensity * intensity;
+      l.visible = true;
+    } else {
+      l.visible = false;
+    }
+  }
+}
 
 // Materials, world, player, post-processing.
 const materials = createMaterials();
@@ -67,6 +98,18 @@ window.__dbgPos = () => ({
   x: +camera.position.x.toFixed(2),
   z: +camera.position.z.toFixed(2),
   chunks: world.chunks.size,
+  lights: world.collectLights().length,
+  litNow: lightPool.filter((l) => l.visible).length,
+});
+
+// Player/stamina debug hook for verification tooling.
+window.__dbgPlayer = () => ({
+  locked: player.isLocked,
+  stamina: +player.stamina.toFixed(2),
+  sprinting: player.sprinting,
+  exhausted: player.exhausted,
+  yaw: +player.yaw.toFixed(3),
+  pitch: +player.pitch.toFixed(3),
 });
 
 // Ambient audio. Started on the click gesture (autoplay policy), suspended
@@ -95,6 +138,15 @@ function updateAudioIndicator(flash) {
   }
 }
 updateAudioIndicator(false);
+
+// Stamina bar: fades in while draining/recovering, hidden when full and rested.
+function updateStamina() {
+  if (!staminaEl || !staminaFill) return;
+  staminaFill.style.width = (player.stamina * 100).toFixed(1) + "%";
+  const show = player.isLocked && (player.stamina < 0.999 || player.sprinting);
+  staminaEl.classList.toggle("visible", show);
+  staminaEl.classList.toggle("exhausted", player.exhausted);
+}
 
 // Overlay / pointer-lock wiring. Clicking ends the opening cut-scene and hands
 // off to the clean gameplay view.
@@ -175,18 +227,17 @@ function animate() {
   // Keep the world streamed around the player.
   world.update(camera.position.x, camera.position.z);
 
-  // Player light follows.
-  playerLight.position.x = camera.position.x;
-  playerLight.position.z = camera.position.z;
-
-  // Flicker the fluorescents (emissive panels + lights together).
+  // Flicker the fluorescents; the sparse fixtures nearest the player get a real
+  // point-light, the emissive panels glow, all buzzing together.
   const f = flicker(t);
   materials.lightPanel.emissiveIntensity = f;
-  playerLight.intensity = 10 + f * 6;
-  hemi.intensity = 0.35 + f * 0.25;
+  hemi.intensity = 0.2 + f * 0.18;
+  updateLights(camera.position.x, camera.position.z, f);
 
   // Fluorescent hum tracks the same flicker so light and sound buzz together.
   ambience.setFlicker(f);
+
+  updateStamina();
 
   fx.setTime(t);
   fx.composer.render();

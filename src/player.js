@@ -1,18 +1,34 @@
-// First-person player: pointer-lock mouse-look (via three's PointerLockControls)
-// plus WASD movement with per-axis AABB collision resolution.
+// First-person player: a custom pointer-lock mouse-look plus WASD movement with
+// per-axis AABB collision resolution and a sprint stamina system.
+//
+// The mouse-look is hand-rolled (rather than three's PointerLockControls) so we
+// can clamp each mouse movement: a fast flick can no longer spin the view 180°
+// or snap it to the ceiling/floor. Pitch is also clamped short of vertical.
 
 import * as THREE from "three";
-import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
 import { CONFIG } from "./config.js";
 
 export class Player {
   constructor(camera, domElement) {
-    this.controls = new PointerLockControls(camera, domElement);
     this.camera = camera;
+    this.dom = domElement;
+    this.camera.rotation.order = "YXZ";
     this.camera.position.set(0, CONFIG.eyeHeight, 0);
+
+    this.yaw = 0;
+    this.pitch = 0;
+    this._locked = false;
 
     this.velocity = new THREE.Vector3();
     this.keys = new Set();
+
+    // Stamina: 1 = full. Sprinting drains it; not sprinting regenerates it.
+    this.stamina = 1;
+    this.exhausted = false; // true once emptied, until it recovers past resume
+    this.sprinting = false; // whether we're actually sprinting this frame (for UI)
+
+    // A tiny EventTarget so main.js can listen for lock/unlock like before.
+    this.controls = new EventTarget();
 
     // Reusable temporaries (avoid per-frame allocation).
     this._forward = new THREE.Vector3();
@@ -21,20 +37,48 @@ export class Player {
 
     window.addEventListener("keydown", (e) => this.keys.add(e.code));
     window.addEventListener("keyup", (e) => this.keys.delete(e.code));
-    // Dropping pointer lock (Esc) should also drop held keys.
-    this.controls.addEventListener("unlock", () => this.keys.clear());
+    document.addEventListener("mousemove", (e) => this.onMouseMove(e));
+    document.addEventListener("pointerlockchange", () => this.onLockChange());
   }
 
   get object() {
-    return this.controls.object;
-  }
-
-  lock() {
-    this.controls.lock();
+    return this.camera;
   }
 
   get isLocked() {
-    return this.controls.isLocked;
+    return this._locked;
+  }
+
+  lock() {
+    this.dom.requestPointerLock();
+  }
+
+  onLockChange() {
+    const locked = document.pointerLockElement === this.dom;
+    if (locked === this._locked) return;
+    this._locked = locked;
+    if (locked) {
+      // Seed yaw/pitch from wherever the camera is now (e.g. after a cut-scene)
+      // so control resumes without a snap.
+      this.yaw = this.camera.rotation.y;
+      this.pitch = this.camera.rotation.x;
+    } else {
+      this.keys.clear();
+    }
+    this.controls.dispatchEvent(new Event(locked ? "lock" : "unlock"));
+  }
+
+  onMouseMove(e) {
+    if (!this._locked) return;
+    const s = CONFIG.mouseSensitivity;
+    const cap = CONFIG.maxLookStep;
+    // Clamp per-event turn so a fast flick can't whip the camera around.
+    const dYaw = THREE.MathUtils.clamp(e.movementX * s, -cap, cap);
+    const dPitch = THREE.MathUtils.clamp(e.movementY * s, -cap, cap);
+    this.yaw -= dYaw;
+    this.pitch -= dPitch;
+    this.pitch = THREE.MathUtils.clamp(this.pitch, -CONFIG.pitchLimit, CONFIG.pitchLimit);
+    this.camera.rotation.set(this.pitch, this.yaw, 0);
   }
 
   // Horizontal wish-direction from WASD, in world space.
@@ -54,13 +98,25 @@ export class Player {
   }
 
   update(dt, colliders) {
-    if (!this.isLocked) return;
+    if (!this._locked) return;
 
-    const running = this.keys.has("ShiftLeft") || this.keys.has("ShiftRight");
-    const speed = running ? CONFIG.runSpeed : CONFIG.walkSpeed;
     const wish = this.wishDir();
+    const moving = wish.lengthSq() > 0;
+    const wantSprint = this.keys.has("ShiftLeft") || this.keys.has("ShiftRight");
 
-    // Smoothly approach target velocity (simple accel/decel).
+    // Sprint only if we want to, are moving, have stamina, and aren't recovering
+    // from a full drain.
+    this.sprinting = wantSprint && moving && !this.exhausted && this.stamina > 0;
+
+    if (this.sprinting) {
+      this.stamina = Math.max(0, this.stamina - CONFIG.staminaDrain * dt);
+      if (this.stamina === 0) this.exhausted = true; // must recover before sprinting again
+    } else {
+      this.stamina = Math.min(1, this.stamina + CONFIG.staminaRegen * dt);
+      if (this.exhausted && this.stamina >= CONFIG.staminaResume) this.exhausted = false;
+    }
+
+    const speed = this.sprinting ? CONFIG.runSpeed : CONFIG.walkSpeed;
     const target = this._forward.set(wish.x * speed, 0, wish.z * speed);
     const t = Math.min(1, CONFIG.accel * dt);
     this.velocity.x += (target.x - this.velocity.x) * t;
@@ -70,18 +126,12 @@ export class Player {
     const dx = this.velocity.x * dt;
     const dz = this.velocity.z * dt;
 
-    // Per-axis resolution: try X, then Z. Colliders are pre-padded by the
-    // player radius, so the player is treated as a point.
-    if (!this.blocked(pos.x + dx, pos.z, colliders)) {
-      pos.x += dx;
-    } else {
-      this.velocity.x = 0;
-    }
-    if (!this.blocked(pos.x, pos.z + dz, colliders)) {
-      pos.z += dz;
-    } else {
-      this.velocity.z = 0;
-    }
+    // Per-axis resolution: try X, then Z. Colliders are pre-padded by the player
+    // radius, so the player is treated as a point.
+    if (!this.blocked(pos.x + dx, pos.z, colliders)) pos.x += dx;
+    else this.velocity.x = 0;
+    if (!this.blocked(pos.x, pos.z + dz, colliders)) pos.z += dz;
+    else this.velocity.z = 0;
 
     pos.y = CONFIG.eyeHeight;
   }
