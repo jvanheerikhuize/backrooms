@@ -12,6 +12,7 @@
 import * as THREE from "three";
 import { CONFIG } from "./config.js";
 import { mulberry32, hashCell } from "./rng.js";
+import { randomObject } from "./objects.js";
 
 const RS = CONFIG.specialRooms;
 const SALT_SHAPE = 0x7001;
@@ -77,7 +78,7 @@ function roomForRegion(rx, ry) {
   const sides = ["n", "e", "s", "w"];
   const openSide = sides[Math.floor(rng() * 4)];
   const style = rng() < 0.5 ? "open" : "gap"; // 3 bare walls, or 4 walls + a doorway gap — always enterable
-  const themes = ["festival", "toys", "camp", "storage"];
+  const themes = ["festival", "toys", "camp", "storage", "party"];
   const theme = themes[Math.floor(rng() * themes.length)];
   const x = ox + w / 2;
   const z = oz + d / 2;
@@ -255,31 +256,68 @@ function addDecor(group, geo, mat, x, y, z, rotY = 0) {
   return mesh;
 }
 
+// True if a footprint centred at (x,z) with the given half-extents overlaps
+// any already-placed collider — used to reroll a spot instead of stacking a
+// new prop on top of one already placed earlier in the same room. Adds
+// CONFIG.playerRadius the same way addBlocker/addWall do when building the
+// *real* collider — every existing collider in `colliders` already includes
+// that padding, so comparing against it with an un-padded half-extent here
+// would silently accept positions that overlap once the real collider goes in.
+function overlapsAny(x, z, halfX, halfZ, colliders) {
+  const px = CONFIG.playerRadius;
+  const hx = halfX + px;
+  const hz = halfZ + px;
+  for (const c of colliders) {
+    if (x - hx < c.maxX && x + hx > c.minX && z - hz < c.maxZ && z + hz > c.minZ) return true;
+  }
+  return false;
+}
+
 // Capped at maxSpread regardless of room size so props in a big room stay
 // clustered near its centre — readable as one scene from one vantage point,
 // rather than scattered out toward walls you can barely see. Pushed clear of
-// the doorway approach (deterministically — see keepClearOfDoor) so nothing
-// ends up blocking, or sitting in, the only way in. `clearance` (the same
-// wall-avoidance margin used for spread above) doubles as the door pad —
-// every call site already sizes it to roughly the prop's own half-extent
-// plus a buffer, so it's a good proxy for "how much room this thing needs".
-function randomSpot(rng, room, clearance, maxSpread = 4.5) {
+// the doorway approach (deterministically — see keepClearOfDoor), then
+// rerolled (rejection sampling — up to 20 tries) against every prop already
+// placed in this room, so new props don't spawn stacked into earlier ones.
+// `clearance` (the same wall-avoidance margin used for spread above) doubles
+// as both the door pad and the overlap half-extent — every call site already
+// sizes it to roughly the prop's own half-extent plus a buffer, so it's a
+// good proxy for "how much room this thing needs" in both roles.
+//
+// Returns null if no clear spot turns up after every try (a genuinely
+// crowded room) — callers must skip placing that prop rather than fall back
+// to an overlapping position; silently accepting the last failed attempt is
+// exactly what caused props to spawn stacked into each other before.
+function randomSpot(rng, room, clearance, colliders, maxSpread = 4.5) {
   const halfW = Math.min(room.w / 2 - clearance, maxSpread);
   const halfD = Math.min(room.d / 2 - clearance, maxSpread);
-  const x = room.x + (rng() * 2 - 1) * Math.max(halfW, 0.2);
-  const z = room.z + (rng() * 2 - 1) * Math.max(halfD, 0.2);
-  return keepClearOfDoor(room, x, z, clearance);
+  for (let i = 0; i < 20; i++) {
+    const x0 = room.x + (rng() * 2 - 1) * Math.max(halfW, 0.2);
+    const z0 = room.z + (rng() * 2 - 1) * Math.max(halfD, 0.2);
+    const { x, z } = keepClearOfDoor(room, x0, z0, clearance);
+    if (!overlapsAny(x, z, clearance, clearance, colliders)) return { x, z };
+  }
+  return null;
 }
 
+// The table is always placed (it anchors the theme; only wall colliders
+// exist to conflict with at this point, so 20 tries essentially never fails)
+// — if every try still overlapped somehow, the last attempt is used rather
+// than leaving the room without a table.
 function addTable(group, colliders, rng, room) {
   const tableW = 1.4 + rng() * 0.7;
   const tableD = 0.75 + rng() * 0.45;
   const tableH = 0.72;
   const maxOffX = Math.max(room.w / 2 - tableW / 2 - 0.6, 0);
   const maxOffZ = Math.max(room.d / 2 - tableD / 2 - 0.6, 0);
-  const tx0 = room.x + (rng() * 2 - 1) * maxOffX * 0.5;
-  const tz0 = room.z + (rng() * 2 - 1) * maxOffZ * 0.5;
-  const { x: tx, z: tz } = keepClearOfDoor(room, tx0, tz0, Math.max(tableW, tableD) / 2 + 0.1);
+  const halfExtent = Math.max(tableW, tableD) / 2;
+  let tx, tz;
+  for (let i = 0; i < 20; i++) {
+    const tx0 = room.x + (rng() * 2 - 1) * maxOffX * 0.5;
+    const tz0 = room.z + (rng() * 2 - 1) * maxOffZ * 0.5;
+    ({ x: tx, z: tz } = keepClearOfDoor(room, tx0, tz0, halfExtent + 0.1));
+    if (!overlapsAny(tx, tz, halfExtent, halfExtent, colliders)) break;
+  }
 
   addDecor(group, new THREE.BoxGeometry(tableW, 0.07, tableD), woodMat, tx, tableH, tz);
   addBlocker(group, colliders, new THREE.BoxGeometry(0.12, tableH, 0.12), woodMat, tx, tableH / 2, tz, tableW / 2, tableD / 2);
@@ -287,14 +325,45 @@ function addTable(group, colliders, rng, room) {
   return { tx, tz, tableW, tableD, tableH };
 }
 
+// Skips adding the chair entirely if no clear spot turns up (rare — happens
+// when the table already fills most of a small room) rather than overlap it.
 function addChair(group, colliders, rng, room, anchorX, anchorZ, radius) {
   const size = 0.42;
-  const angle = rng() * Math.PI * 2;
-  const x0 = anchorX + Math.cos(angle) * radius;
-  const z0 = anchorZ + Math.sin(angle) * radius;
-  const { x, z } = keepClearOfDoor(room, x0, z0, size / 2 + 0.2);
+  const half = size / 2;
+  let spot = null;
+  for (let i = 0; i < 20; i++) {
+    const angle = rng() * Math.PI * 2;
+    const x0 = anchorX + Math.cos(angle) * radius;
+    const z0 = anchorZ + Math.sin(angle) * radius;
+    const { x, z } = keepClearOfDoor(room, x0, z0, half + 0.2);
+    if (!overlapsAny(x, z, half, half, colliders)) {
+      spot = { x, z };
+      break;
+    }
+  }
+  if (!spot) return;
   const rotY = rng() * Math.PI * 2;
-  addBlocker(group, colliders, new THREE.BoxGeometry(size, 0.85, size), woodMat, x, 0.42, z, size / 2, size / 2, rotY);
+  addBlocker(group, colliders, new THREE.BoxGeometry(size, 0.85, size), woodMat, spot.x, 0.42, spot.z, half, half, rotY);
+}
+
+// A piece of left-behind Async Research Institute equipment (goal.md §6.8) —
+// real STL geometry from the registry (see objects.js) rather than another
+// primitive. Returns false (does nothing) if the model cache isn't ready
+// yet, every registered model failed to load, or the room's too crowded to
+// fit it — a slow/broken fetch or a packed room can never break generation.
+function addResearchProp(group, colliders, rng, room) {
+  const obj = randomObject(rng);
+  if (!obj) return false;
+  const spot = randomSpot(rng, room, Math.max(obj.halfX, obj.halfZ) + 0.3, colliders);
+  if (!spot) return false;
+  const { x, z } = spot;
+  const mesh = new THREE.Mesh(obj.geometry, obj.material); // shared, cached geometry — never mark disposable
+  mesh.position.set(x, 0, z);
+  mesh.rotation.y = rng() * Math.PI * 2;
+  group.add(mesh);
+  const px = CONFIG.playerRadius;
+  colliders.push({ minX: x - obj.halfX - px, maxX: x + obj.halfX + px, minZ: z - obj.halfZ - px, maxZ: z + obj.halfZ + px });
+  return true;
 }
 
 // ── Festival: a table, a couple of chairs, and worn decorations. ──────────
@@ -316,13 +385,16 @@ function addFestivalTheme(group, colliders, rng, room) {
     addDecor(group, geo, mat, px, table.tableH + size / 2 + 0.04, pz, rng() * Math.PI * 2);
   }
 
-  const droppedCount = 2 + Math.floor(rng() * 3); // 2-4 items dropped on the floor
+  if (rng() < 0.3) addResearchProp(group, colliders, rng, room);
+
+  const droppedCount = 1 + Math.floor(rng() * 3); // 1-3 items dropped on the floor
   for (let i = 0; i < droppedCount; i++) {
+    const spot = randomSpot(rng, room, 0.6, colliders);
+    if (!spot) continue; // room's too crowded for this one — skip it, don't overlap
     const mat = festiveMats[Math.floor(rng() * festiveMats.length)];
     const size = 0.13 + rng() * 0.1;
-    const { x, z } = randomSpot(rng, room, 0.6);
     const geo = rng() < 0.5 ? new THREE.BoxGeometry(size, size, size) : new THREE.CylinderGeometry(size / 2, size / 2, size, 8);
-    addBlocker(group, colliders, geo, mat, x, size / 2, z, size / 2, size / 2, rng() * Math.PI * 2);
+    addBlocker(group, colliders, geo, mat, spot.x, size / 2, spot.z, size / 2, size / 2, rng() * Math.PI * 2);
   }
 }
 
@@ -331,15 +403,18 @@ function addToysTheme(group, colliders, rng, room) {
   if (rng() < 0.5) {
     const w = 0.7 + rng() * 0.3;
     const d = 0.5 + rng() * 0.2;
-    const { x, z } = randomSpot(rng, room, Math.max(w, d) / 2 + 0.4);
-    addBlocker(group, colliders, new THREE.BoxGeometry(w, 0.45, d), crateMat, x, 0.225, z, w / 2, d / 2, rng() * Math.PI * 2);
+    const spot = randomSpot(rng, room, Math.max(w, d) / 2 + 0.4, colliders);
+    if (spot) addBlocker(group, colliders, new THREE.BoxGeometry(w, 0.45, d), crateMat, spot.x, 0.225, spot.z, w / 2, d / 2, rng() * Math.PI * 2);
   }
 
-  const count = 5 + Math.floor(rng() * 4); // 5-8 scattered toys
+  if (rng() < 0.3) addResearchProp(group, colliders, rng, room);
+
+  const count = 4 + Math.floor(rng() * 4); // 4-7 scattered toys
   for (let i = 0; i < count; i++) {
+    const spot = randomSpot(rng, room, 0.4, colliders);
+    if (!spot) continue;
     const mat = toyMats[Math.floor(rng() * toyMats.length)];
     const size = 0.16 + rng() * 0.18;
-    const { x, z } = randomSpot(rng, room, 0.4);
     const roll = rng();
     const geo =
       roll < 0.4
@@ -347,7 +422,7 @@ function addToysTheme(group, colliders, rng, room) {
         : roll < 0.75
           ? new THREE.SphereGeometry(size / 2, 10, 8)
           : new THREE.CylinderGeometry(size / 2, size / 2, size * 0.8, 10);
-    addBlocker(group, colliders, geo, mat, x, size / 2, z, size / 2, size / 2, rng() * Math.PI * 2);
+    addBlocker(group, colliders, geo, mat, spot.x, size / 2, spot.z, size / 2, size / 2, rng() * Math.PI * 2);
   }
 }
 
@@ -355,33 +430,39 @@ function addToysTheme(group, colliders, rng, room) {
 function addCampTheme(group, colliders, rng, room) {
   const bw = 1.7 + rng() * 0.4;
   const bd = 0.6 + rng() * 0.15;
-  const { x: bx, z: bz } = randomSpot(rng, room, Math.max(bw, bd) / 2 + 0.5);
-  addBlocker(group, colliders, new THREE.BoxGeometry(bw, 0.08, bd), fabricMat, bx, 0.04, bz, bw / 2, bd / 2, rng() * Math.PI * 2);
+  const bedSpot = randomSpot(rng, room, Math.max(bw, bd) / 2 + 0.5, colliders);
+  if (bedSpot) addBlocker(group, colliders, new THREE.BoxGeometry(bw, 0.08, bd), fabricMat, bedSpot.x, 0.04, bedSpot.z, bw / 2, bd / 2, rng() * Math.PI * 2);
 
-  const { x: pkx, z: pkz } = randomSpot(rng, room, 0.5);
-  addBlocker(group, colliders, new THREE.BoxGeometry(0.34, 0.4, 0.22), fabricMat, pkx, 0.2, pkz, 0.17, 0.11, rng() * Math.PI * 2);
+  const packSpot = randomSpot(rng, room, 0.5, colliders);
+  if (packSpot) addBlocker(group, colliders, new THREE.BoxGeometry(0.34, 0.4, 0.22), fabricMat, packSpot.x, 0.2, packSpot.z, 0.17, 0.11, rng() * Math.PI * 2);
 
-  const { x: lx, z: lz } = randomSpot(rng, room, 0.4);
-  addBlocker(group, colliders, new THREE.CylinderGeometry(0.1, 0.12, 0.22, 10), lanternMat, lx, 0.11, lz, 0.12, 0.12);
+  const lanternSpot = randomSpot(rng, room, 0.4, colliders);
+  if (lanternSpot) addBlocker(group, colliders, new THREE.CylinderGeometry(0.1, 0.12, 0.22, 10), lanternMat, lanternSpot.x, 0.11, lanternSpot.z, 0.12, 0.12);
 
-  const supplyCount = 2 + Math.floor(rng() * 3); // 2-4 cans/boxes
+  if (rng() < 0.3) addResearchProp(group, colliders, rng, room);
+
+  const supplyCount = 1 + Math.floor(rng() * 3); // 1-3 cans/boxes
   for (let i = 0; i < supplyCount; i++) {
+    const spot = randomSpot(rng, room, 0.35, colliders);
+    if (!spot) continue;
     const mat = rng() < 0.5 ? metalMat : crateMat;
     const size = 0.14 + rng() * 0.12;
-    const { x, z } = randomSpot(rng, room, 0.35);
     const geo = rng() < 0.5 ? new THREE.CylinderGeometry(size / 2, size / 2, size, 10) : new THREE.BoxGeometry(size, size, size);
-    addBlocker(group, colliders, geo, mat, x, size / 2, z, size / 2, size / 2, rng() * Math.PI * 2);
+    addBlocker(group, colliders, geo, mat, spot.x, size / 2, spot.z, size / 2, size / 2, rng() * Math.PI * 2);
   }
 }
 
 // ── Storage: crates and barrels, some stacked, sometimes a standing shelf. ─
 function addStorageTheme(group, colliders, rng, room) {
   if (rng() < 0.45) addFloorShelf(group, colliders, rng, room);
+  if (rng() < 0.35) addResearchProp(group, colliders, rng, room);
 
-  const crateCount = 4 + Math.floor(rng() * 4); // 4-7 crates
+  const crateCount = 3 + Math.floor(rng() * 4); // 3-6 crates
   for (let i = 0; i < crateCount; i++) {
     const size = 0.5 + rng() * 0.35;
-    const { x, z } = randomSpot(rng, room, size / 2 + 0.4);
+    const spot = randomSpot(rng, room, size / 2 + 0.4, colliders);
+    if (!spot) continue;
+    const { x, z } = spot;
     const h = size * (0.8 + rng() * 0.3);
     const mesh = addBlocker(group, colliders, new THREE.BoxGeometry(size, h, size), crateMat, x, h / 2, z, size / 2, size / 2, rng() * Math.PI * 2);
     if (rng() < 0.4) {
@@ -394,20 +475,24 @@ function addStorageTheme(group, colliders, rng, room) {
   const barrelCount = 1 + Math.floor(rng() * 3); // 1-3 barrels
   for (let i = 0; i < barrelCount; i++) {
     const r = 0.24 + rng() * 0.08;
+    const spot = randomSpot(rng, room, r + 0.4, colliders);
+    if (!spot) continue;
     const h = 0.75 + rng() * 0.2;
-    const { x, z } = randomSpot(rng, room, r + 0.4);
-    addBlocker(group, colliders, new THREE.CylinderGeometry(r, r, h, 12), metalMat, x, h / 2, z, r, r);
+    addBlocker(group, colliders, new THREE.CylinderGeometry(r, r, h, 12), metalMat, spot.x, h / 2, spot.z, r, r);
   }
 }
 
 // ── Standing shelf/rack: a distinct silhouette (two posts + planks) rather
 // than another box or cylinder — floor-standing, axis-aligned (no rotation,
-// to keep its collider a simple accurate AABB). ──────────────────────────
+// to keep its collider a simple accurate AABB). Does nothing if the room's
+// too crowded for it, rather than overlapping something already placed.
 function addFloorShelf(group, colliders, rng, room) {
   const w = 0.9 + rng() * 0.4;
   const h = 1.5 + rng() * 0.4;
   const depth = 0.32;
-  const { x, z } = randomSpot(rng, room, Math.max(w, depth) / 2 + 0.5);
+  const spot = randomSpot(rng, room, Math.max(w, depth) / 2 + 0.5, colliders);
+  if (!spot) return;
+  const { x, z } = spot;
 
   addDecor(group, new THREE.BoxGeometry(0.05, h, depth), woodMat, x - w / 2 + 0.025, h / 2, z);
   addDecor(group, new THREE.BoxGeometry(0.05, h, depth), woodMat, x + w / 2 - 0.025, h / 2, z);
@@ -427,6 +512,118 @@ function addFloorShelf(group, colliders, rng, room) {
 
   const px = CONFIG.playerRadius;
   colliders.push({ minX: x - w / 2 - px, maxX: x + w / 2 + px, minZ: z - depth / 2 - px, maxZ: z + depth / 2 + px });
+}
+
+// ── Party: a table at the room's centre with cake, confetti on the floor,
+// and streamers sagging across the ceiling. ───────────────────────────────
+const partyMats = [0xb84a4a, 0x4a7fb8, 0xd4b23a, 0x4aa662, 0xb84a94].map(
+  (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.7, side: THREE.DoubleSide })
+);
+const plateMat = new THREE.MeshStandardMaterial({ color: 0xe8e2d0, roughness: 0.5 });
+const cakeMat = new THREE.MeshStandardMaterial({ color: 0xe0b98a, roughness: 0.6 });
+const frostingMat = new THREE.MeshStandardMaterial({ color: 0xd66fa0, roughness: 0.5 });
+
+// A paper plate with one cake slice on it. The slice is a 3-sided prism
+// (a triangular cross-section) rather than a box or cylinder — reads as a
+// wedge shape lying on the plate.
+function addCakeOnPlate(group, rng, tableX, tableZ, tableTopY) {
+  const plateR = 0.13;
+  addDecor(group, new THREE.CylinderGeometry(plateR, plateR, 0.012, 16), plateMat, tableX, tableTopY + 0.006, tableZ);
+
+  const sliceR = 0.075;
+  const sliceH = 0.06;
+  const rotY = rng() * Math.PI * 2;
+  addDecor(group, new THREE.CylinderGeometry(sliceR, sliceR, sliceH, 3), cakeMat, tableX, tableTopY + 0.012 + sliceH / 2, tableZ, rotY);
+  addDecor(
+    group,
+    new THREE.CylinderGeometry(sliceR * 0.85, sliceR * 0.85, 0.012, 3),
+    frostingMat,
+    tableX,
+    tableTopY + 0.012 + sliceH + 0.006,
+    tableZ,
+    rotY
+  );
+}
+
+// Small flat confetti pieces scattered on the floor — cosmetic only, like
+// the tabletop trinkets elsewhere; real confetti wouldn't meaningfully
+// block walking, and colliding with every piece would be absurd.
+function addConfetti(group, rng, room) {
+  const count = 25 + Math.floor(rng() * 15); // 25-39 pieces
+  const halfW = Math.max(room.w / 2 - 0.4, 0.5);
+  const halfD = Math.max(room.d / 2 - 0.4, 0.5);
+  for (let i = 0; i < count; i++) {
+    const mat = partyMats[Math.floor(rng() * partyMats.length)];
+    const size = 0.03 + rng() * 0.025;
+    const x = room.x + (rng() * 2 - 1) * halfW;
+    const z = room.z + (rng() * 2 - 1) * halfD;
+    const square = rng() < 0.5;
+    const geo = square ? new THREE.BoxGeometry(size, 0.004, size) : new THREE.CircleGeometry(size / 2, 6);
+    const rotX = square ? 0 : -Math.PI / 2; // circles are drawn facing +Z by default — lay them flat
+    const mesh = new THREE.Mesh(geo, mat);
+    geo.userData.disposable = true;
+    mesh.position.set(x, 0.003, z);
+    mesh.rotation.set(rotX, rng() * Math.PI * 2, 0);
+    group.add(mesh);
+  }
+}
+
+// A streamer sagging between two random points near the ceiling, built from
+// several straight segments following a shallow parabolic dip rather than
+// one rigid straight strip.
+function addStreamer(group, rng, room, mat) {
+  const y = CONFIG.wallHeight - (0.15 + rng() * 0.3);
+  const sag = 0.25 + rng() * 0.35;
+  const halfW = Math.max(room.w / 2 - 0.6, 1);
+  const halfD = Math.max(room.d / 2 - 0.6, 1);
+  const ax = room.x + (rng() * 2 - 1) * halfW;
+  const az = room.z + (rng() * 2 - 1) * halfD;
+  const bx = room.x + (rng() * 2 - 1) * halfW;
+  const bz = room.z + (rng() * 2 - 1) * halfD;
+  const width = 0.1 + rng() * 0.06;
+  const segs = 8;
+
+  let prev = { x: ax, y, z: az };
+  for (let i = 1; i <= segs; i++) {
+    const t = i / segs;
+    const dip = Math.sin(Math.PI * t) * sag; // 0 at both ends, peaks at the middle
+    const cur = { x: ax + (bx - ax) * t, y: y - dip, z: az + (bz - az) * t };
+
+    const dx = cur.x - prev.x;
+    const dy = cur.y - prev.y;
+    const dz = cur.z - prev.z;
+    const flatLen = Math.hypot(dx, dz);
+    const len = Math.hypot(flatLen, dy);
+
+    const geo = new THREE.BoxGeometry(width, 0.02, len);
+    geo.userData.disposable = true;
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set((prev.x + cur.x) / 2, (prev.y + cur.y) / 2, (prev.z + cur.z) / 2);
+    mesh.rotation.y = Math.atan2(dx, dz);
+    mesh.rotation.x = -Math.atan2(dy, flatLen);
+    group.add(mesh);
+    prev = cur;
+  }
+}
+
+function addPartyTheme(group, colliders, rng, room) {
+  // Table stays at the room's true centre — always well outside the
+  // doorway's 3m-deep approach (rooms are at least 9m across), so this
+  // rarely if ever needs the door-avoidance nudge, but it's there just in case.
+  const tableW = 1.4 + rng() * 0.5;
+  const tableD = 0.8 + rng() * 0.3;
+  const tableH = 0.72;
+  const { x: tx, z: tz } = keepClearOfDoor(room, room.x, room.z, Math.max(tableW, tableD) / 2 + 0.1);
+  addDecor(group, new THREE.BoxGeometry(tableW, 0.07, tableD), woodMat, tx, tableH, tz);
+  addBlocker(group, colliders, new THREE.BoxGeometry(0.12, tableH, 0.12), woodMat, tx, tableH / 2, tz, tableW / 2, tableD / 2);
+
+  addCakeOnPlate(group, rng, tx, tz, tableH);
+  addConfetti(group, rng, room);
+
+  const streamerCount = 2 + Math.floor(rng() * 3); // 2-4
+  for (let i = 0; i < streamerCount; i++) {
+    addStreamer(group, rng, room, partyMats[Math.floor(rng() * partyMats.length)]);
+  }
 }
 
 // ── Wall-mounted decorations. Purely cosmetic (no collider) — this game's
@@ -497,6 +694,16 @@ function addWallDecor(group, rng, room) {
     const h = 0.45 + rng() * 0.2;
     const y = 1.4 + rng() * 0.5;
     mountBox(group, room, side, w, h, 0.008, fabricMat, y, along, 0);
+  } else if (room.theme === "party") {
+    // A row of small bunting flags.
+    const flagCount = 5 + Math.floor(rng() * 4);
+    const y = 2.0 + rng() * 0.3;
+    const spacing = 0.22;
+    for (let i = 0; i < flagCount; i++) {
+      const mat = partyMats[Math.floor(rng() * partyMats.length)];
+      const bob = i % 2 === 0 ? 0 : -0.04;
+      mountBox(group, room, side, 0.14, 0.16, 0.01, mat, y + bob, along + (i - flagCount / 2) * spacing, 0);
+    }
   } else {
     // Storage: a wall shelf with a couple of small items on it.
     const w = 0.8 + rng() * 0.4;
@@ -529,6 +736,7 @@ export function buildRoomGroup(room, materials) {
   if (room.theme === "festival") addFestivalTheme(group, colliders, propRng, room);
   else if (room.theme === "toys") addToysTheme(group, colliders, propRng, room);
   else if (room.theme === "camp") addCampTheme(group, colliders, propRng, room);
+  else if (room.theme === "party") addPartyTheme(group, colliders, propRng, room);
   else addStorageTheme(group, colliders, propRng, room);
 
   addWallDecor(group, propRng, room);

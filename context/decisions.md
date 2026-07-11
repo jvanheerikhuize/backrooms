@@ -3,6 +3,15 @@
 Append-only, terse log of decisions that aren't obvious from the code. Newest
 first. One entry per decision: date · what · why.
 
+- **2026-07-11 · STL models are a deliberate exception to "procedural-only
+  assets."** Added `src/objects.js` (a registry + STLLoader cache) and
+  `public/models/stl/` so special-room props can use real geometry, not just
+  boxes/cylinders. This breaks the "no external asset files, works offline"
+  rule below — accepted knowingly, not by accident. Kept low-risk: the STL
+  files are three.js's own MIT-licensed example models (same license as the
+  `three` dependency already in use), so no new licensing exposure; see
+  `public/models/stl/NOTICE.md`. Registration is Flynn's call — decided he
+  wanted this over staying procedural-only.
 - **2026-07-11 · Config-driven layout zones (world generation).** Flynn's second
   feature. The grid is
   partitioned into square zones, each assigned a weighted-random profile — open,

@@ -25,13 +25,18 @@ first slice.
 
 ## 2. Where the code lives (`src/`)
 
-Everything is procedural — **no image or audio asset files** (keep it that way; it
-works offline). Rendered with three.js, bundled by Vite.
+Almost everything is procedural — **no image or audio asset files**, works
+offline. One deliberate exception: `objects.js` loads real STL 3D models (see
+`context/decisions.md`, "STL models are a deliberate exception..."); keep new
+asset types to that same narrow, documented exception rather than expanding it
+casually. Rendered with three.js, bundled by Vite.
 
 | File | What it does | Good for |
 | --- | --- | --- |
 | `config.js` | Central tuning knobs: palette colors, room size, fog, speeds | **Easiest safe tweaks** (colors, fog, sizes) |
 | `world.js` | Streams the endless rooms/pillars around the player | Layout, density, geometry |
+| `rooms.js` | Special "someone was here" rooms (themes, doorways, props) | Room content, prop themes |
+| `objects.js` | Registry + loader/cache for external STL 3D models | Adding new real 3D props |
 | `materials.js` | Procedural (canvas) textures for walls/carpet/ceiling | Look of surfaces |
 | `player.js` | First-person movement + collision | Controls, speed, feel |
 | `postfx.js` | VHS / found-footage post-processing (grain, tracking, bloom) | Screen effects, glitch |
