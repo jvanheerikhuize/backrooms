@@ -9,6 +9,12 @@ import { Player } from "./player.js";
 import { createComposer } from "./postfx.js";
 import { Ambience } from "./audio.js";
 import { Cutscene } from "./cutscene.js";
+import { preloadObjects } from "./objects.js";
+
+// Kick the STL model fetches off immediately so they load in parallel with
+// the synchronous setup below; awaited just before the first world.update()
+// call, which is the first point anything actually needs them ready.
+const objectsReady = preloadObjects();
 
 const canvas = document.getElementById("scene");
 const overlay = document.getElementById("overlay");
@@ -85,8 +91,10 @@ const player = new Player(camera, canvas);
 scene.add(player.object);
 const fx = createComposer(renderer, scene, camera);
 
-// Build the initial chunks around the spawn ("fresh corner").
-world.update(SPAWN_POS.wx, SPAWN_POS.wz);
+// Building chunks (world.update) is deferred until objectsReady resolves —
+// see the bottom of this file — so no room's deterministic prop rng stream
+// can desync between a chunk built while the STL fetch was still in flight
+// and a later rebuild after it's warm.
 
 // Found-footage cut-scene layer (Feature 04). The opening screen plays as a
 // looping cut-scene behind the title; gameplay runs the clean view.
@@ -165,7 +173,7 @@ window.__dbgTeleportRoom = teleportToRandomRoom;
 
 // Teleport to stand in front of a black wall arrow (dev menu option 2).
 function teleportToArrow() {
-  const arrow = world.findArrow(camera.position.x, camera.position.z);
+  const arrow = world.randomArrow(camera.position.x, camera.position.z);
   if (!arrow) return null;
   world.update(arrow.standX, arrow.standZ);
   const spot = findClearSpot(arrow.standX, arrow.standZ);
@@ -398,4 +406,12 @@ function animate() {
   fx.composer.render();
 }
 
-animate();
+// Wait for the STL model cache before the first world.update() (initial or
+// per-frame) — see the note near the top of the file for why this matters
+// for room-prop determinism. These are tiny local files, so in practice
+// this resolves within a frame or two; the opening cut-scene's own visuals
+// don't start rendering until animate() begins either way.
+objectsReady.then(() => {
+  world.update(SPAWN_POS.wx, SPAWN_POS.wz);
+  animate();
+});

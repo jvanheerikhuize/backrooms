@@ -312,38 +312,29 @@ export class World {
     return rooms[0] ?? null;
   }
 
-  // Nearest already-known arrow (see maybeAddArrow). If none have turned up
-  // yet this session, force-builds outward rings of chunks — arrows are rare
-  // (~1 per 12 chunks) but this reliably finds one well before the cap.
-  // Chunks built purely for this search get cleaned up by the very next
-  // normal world.update() call, since they're outside the player's loadRadius.
-  findArrow(wx, wz, maxRing = 12) {
-    const nearest = () => {
-      let best = null;
-      let bestD = Infinity;
-      for (const a of this.arrows) {
-        const d = (a.x - wx) ** 2 + (a.z - wz) ** 2;
-        if (d < bestD) {
-          bestD = d;
-          best = a;
+  // A RANDOM already-known arrow (see maybeAddArrow) — not the nearest one,
+  // which would always hand back the same arrow you just teleported next to
+  // (it's trivially the closest thing to itself). If too few are known yet
+  // this session, force-builds outward rings of chunks first so there's
+  // actually a pool to pick from — arrows are rare (~1 per 12 chunks) but
+  // this reliably finds several well before the cap. Chunks built purely for
+  // this search get cleaned up by the very next normal world.update() call,
+  // since they're outside the player's loadRadius.
+  randomArrow(wx, wz, wantKnown = 5, maxRing = 12) {
+    if (this.arrows.length < wantKnown) {
+      const { cx: pcx, cy: pcy } = this.chunkOf(wx, wz);
+      for (let ring = 0; ring <= maxRing && this.arrows.length < wantKnown; ring++) {
+        for (let dy = -ring; dy <= ring; dy++) {
+          for (let dx = -ring; dx <= ring; dx++) {
+            if (Math.max(Math.abs(dx), Math.abs(dy)) !== ring) continue;
+            const key = World.chunkKey(pcx + dx, pcy + dy);
+            if (!this.chunks.has(key)) this.buildChunk(pcx + dx, pcy + dy);
+          }
         }
       }
-      return best;
-    };
-    let found = nearest();
-    if (found) return found;
-    const { cx: pcx, cy: pcy } = this.chunkOf(wx, wz);
-    for (let ring = 0; ring <= maxRing && !found; ring++) {
-      for (let dy = -ring; dy <= ring; dy++) {
-        for (let dx = -ring; dx <= ring; dx++) {
-          if (Math.max(Math.abs(dx), Math.abs(dy)) !== ring) continue;
-          const key = World.chunkKey(pcx + dx, pcy + dy);
-          if (!this.chunks.has(key)) this.buildChunk(pcx + dx, pcy + dy);
-        }
-      }
-      found = nearest();
     }
-    return found;
+    if (this.arrows.length === 0) return null;
+    return this.arrows[Math.floor(Math.random() * this.arrows.length)];
   }
 
   // Re-roll the world seed and rebuild everything from scratch around
