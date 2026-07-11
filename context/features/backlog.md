@@ -19,17 +19,25 @@ final commit — see the workflow note at the bottom.
 > shared-lobby vision is delivered by **NPCs** that mock networked players.
 > Multiplayer is deferred — see [`../goal.md`](../goal.md) "Current scope".
 
-| ID | Feature | Status | Aesthetic / lore root | Depends on |
-| --- | --- | --- | --- | --- |
-| [01](./completed/01-empty-yellow.md) | The Empty Yellow — walkable base | ✅ **Done** | §4 base look, §5.1 | — |
-| [02](./02-player-influence-leak.md) | Player Influence & The Leak | Designed | §5.3, §5.6, §6.2 | 01 |
-| [03](./completed/03-audio-ambience.md) | Audio & Ambience (brown-noise bed) | ✅ **Done** | §4 ambient audio, §6.5 | 01 |
-| [04](./04-found-footage-camera.md) | Found-Footage Camera (Cut-Scene Layer) | 🔨 Built (review) | §4 VHS, §6.9 | 01 |
-| [05](./05-fluorescent-flicker.md) | Fluorescent Lighting Overhaul | Proposed | §4 fluorescent buzz | 01 (03 for audio sync) |
-| [06](./06-liminal-detail-pass.md) | Liminal Environmental Detail Pass | Proposed | §4 damp/liminal | 01 |
-| [07](./07-green-glow-null-zones.md) | The Green Glow & Null Zones | Proposed | §6.7, §6.1 | 01 |
-| [08](./08-the-growth.md) | The Growth (corruption state) | Proposed | §6.6, §6.3 | 02 |
-| [09](./09-npc-presences.md) | NPC Presences (mock multiplayer) | Proposed | §5.2, §5.4, §6.4 | 02 |
+The table below is **auto-generated** from each spec's `> Status:` line and its
+folder — run `npm run context` to refresh it. Don't hand-edit between the markers.
+
+<!-- context:features:start -->
+| ID | Feature | Status |
+| --- | --- | --- |
+| [01](./completed/01-empty-yellow.md) | The Empty Yellow | ✅ Done |
+| [02](./02-player-influence-leak.md) | Player Influence & The Leak | 📐 Designed |
+| [03](./completed/03-audio-ambience.md) | Audio & Ambience | ✅ Done |
+| [04](./04-found-footage-camera.md) | Found-Footage Camera Layer | • Proposed |
+| [05](./05-fluorescent-flicker.md) | Fluorescent Lighting Overhaul | • Proposed |
+| [06](./06-liminal-detail-pass.md) | Liminal Environmental Detail Pass | • Proposed |
+| [07](./07-green-glow-null-zones.md) | The Green Glow & Null Zones | • Proposed |
+| [08](./08-the-growth.md) | The Growth | • Proposed |
+| [09](./09-npc-presences.md) | NPC Presences | • Proposed |
+<!-- context:features:end -->
+
+Lore/aesthetic roots and dependencies for each feature are in its own spec
+header; the Themes below capture the ordering.
 
 ## Themes
 
