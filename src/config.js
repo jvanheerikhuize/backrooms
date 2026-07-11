@@ -6,10 +6,10 @@
 // metres. Area ranges below (light regions, corridor regions) are also metres.
 
 export const CONFIG = {
-  // Deterministic layout. A fixed seed means the "fresh corner" a player
-  // spawns in is reproducible — cheap insurance for the later shared-world
-  // and fresh-corner logic (goal.md §5.2–§5.5).
-  seed: 0x8a17c3,
+  // Layout seed. Randomised per page load so the maze is different every time
+  // you play; everything downstream (zones, walls, lights, rooms) is still
+  // fully deterministic *within* a session — only reloading reshuffles it.
+  seed: (Math.random() * 0xffffffff) >>> 0,
 
   // Geometry (metres).
   cellSize: 4.2, // footprint of one grid cell
@@ -35,17 +35,45 @@ export const CONFIG = {
   //   pillarChance      per-cell pillar probability (rare)
   //   corridor:true     the zone is one long walled hallway
   //   encounter:true    an open clearing with a marker (reserved for encounters)
+  //   spawnOnly:true    excluded from random zone assignment — only reachable
+  //                     via `spawnProfile` below, so there's exactly one on
+  //                     the whole map (the spawn marker).
   zones: {
     cells: 13, // zone size in grid cells (~55 m square)
-    spawnProfile: "open", // the fresh corner always uses this
+    spawnProfile: "encounter", // the fresh corner always uses this — player spawns on its marker
     profiles: [
-      { name: "open", weight: 3, wallChance: 0.015, wallContinuation: 2.0, pillarChance: 0.05 },
-      { name: "rooms", weight: 3, wallChance: 0.34, wallContinuation: 3.5, pillarChance: 0.01 },
+      { name: "open", weight: 3, wallChance: 0.045, wallContinuation: 4.0, pillarChance: 0.08 },
+      { name: "rooms", weight: 3, wallChance: 0.34, wallContinuation: 5.0, pillarChance: 0.01 },
       { name: "corridors", weight: 2, corridor: true },
-      { name: "encounter", weight: 1, wallChance: 0.0, pillarChance: 0.0, encounter: true },
+      { name: "encounter", weight: 1, wallChance: 0.0, pillarChance: 0.0, encounter: true, spawnOnly: true },
     ],
   },
   corridorWidth: 2, // interior width (cells) of corridor-zone hallways
+
+  // "Someone was here" rooms — enclosed rooms, roughly one per 250x250m
+  // region (deterministic, jittered within an inner margin so rooms in
+  // neighbouring regions never end up closer than 2*margin apart). Each is
+  // enclosed by either 3 bare walls (the 4th side fully open) or all 4 walls
+  // with a doorway-sized gap — always enterable. Each holds a themed trace
+  // of a past occupant — festival leftovers, toys, a camp, or stored crates.
+  specialRooms: {
+    regionSize: 250, // metres — at most one room per region
+    margin: 24, // metres kept clear from the region edge on all sides
+    sizeMin: 9, // metres — room footprint range
+    sizeMax: 15,
+    entranceGap: 1.8, // metres — doorway width for the "gap" enclosure style
+  },
+
+  // Black directional wall arrows — a very rare bit of set-dressing. Rolled
+  // once per generated wall segment.
+  arrowChance: 0.004,
+
+  // Minimum-density floor. Natural per-cell probabilities can still roll a
+  // near-empty patch; if a chunk ends up with fewer than this many
+  // walls+pillars combined, extra pillars are added deterministically until
+  // the floor is met (corridor/encounter zones are exempt — they're meant to
+  // stay open).
+  minBlockersPerChunk: 20,
 
   // Lights. Sparse: a random 1–3 lights per `lightRegion`×`lightRegion` metres,
   // each a bright fixture that pools light on the floor. `maxActiveLights` caps
@@ -54,9 +82,9 @@ export const CONFIG = {
   lightRegion: 100, // metres — area over which light count is decided
   lightsPerRegionMin: 1,
   lightsPerRegionMax: 3,
-  lightRange: 34, // metres a light reaches — bigger = less dark
-  lightIntensity: 55, // brightness of each fixture
-  lightDecay: 1.5, // falloff; lower = reaches further
+  lightRange: 42, // metres a light reaches — bigger = less dark
+  lightIntensity: 80, // brightness of each fixture
+  lightDecay: 1.3, // falloff; lower = reaches further
   maxActiveLights: 10, // real point-lights lit at once (nearest to player)
 
   // Player.

@@ -7,17 +7,19 @@
 
 import * as THREE from "three";
 import { CONFIG } from "./config.js";
+import { SPAWN_POS } from "./world.js";
 
 export class Player {
   constructor(camera, domElement) {
     this.camera = camera;
     this.dom = domElement;
     this.camera.rotation.order = "YXZ";
-    this.camera.position.set(0, CONFIG.eyeHeight, 0);
+    this.camera.position.set(SPAWN_POS.wx, CONFIG.eyeHeight, SPAWN_POS.wz);
 
     this.yaw = 0;
     this.pitch = 0;
     this._locked = false;
+    this.paused = false; // frozen (e.g. inventory open) without releasing pointer lock
 
     this.velocity = new THREE.Vector3();
     this.keys = new Set();
@@ -68,8 +70,13 @@ export class Player {
     this.controls.dispatchEvent(new Event(locked ? "lock" : "unlock"));
   }
 
+  setPaused(paused) {
+    this.paused = paused;
+    if (paused) this.keys.clear();
+  }
+
   onMouseMove(e) {
-    if (!this._locked) return;
+    if (!this._locked || this.paused) return;
     const s = CONFIG.mouseSensitivity;
     const cap = CONFIG.maxLookStep;
     // Clamp per-event turn so a fast flick can't whip the camera around.
@@ -98,7 +105,7 @@ export class Player {
   }
 
   update(dt, colliders) {
-    if (!this._locked) return;
+    if (!this._locked || this.paused) return;
 
     const wish = this.wishDir();
     const moving = wish.lengthSq() > 0;
