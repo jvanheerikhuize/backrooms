@@ -1,5 +1,9 @@
 # Backrooms
 
+> ## 👋 Flynn — start here: **[FLYNN.md](./FLYNN.md)**
+> Your step-by-step guide to adding your own ideas to the game. No git or coding
+> experience needed. 🟡👾
+
 A browser-based, first-person **Backrooms exploration game** where the choices
 and inputs of nearby presences leak into the world around you as slightly-off,
 dreamlike alterations.
