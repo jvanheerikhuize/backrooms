@@ -73,8 +73,10 @@ lives in **[context/goal.md](./context/goal.md)**, a living document that anyone
 What the game already does today:
 
 - **The Empty Yellow** — a walkable, single-player base Backrooms: first-person
-  navigation through an endless procedurally-streamed world of yellow rooms and
-  pillars, with flickering fluorescent lighting.
+  navigation through an endless procedurally-streamed world. Long wallpaper
+  corridors and closed-off rooms (walls common, pillars rare), sparse flickering
+  fluorescent fixtures that pool light on the floor, the occasional long corridor,
+  and sprinting with a stamina bar.
 - **Audio & ambience** — a procedural brown-noise room-tone bed and a fluorescent
   hum coupled to the light flicker, with a mute toggle (M). No audio assets — all
   Web Audio.
