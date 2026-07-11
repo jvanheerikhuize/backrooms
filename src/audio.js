@@ -13,17 +13,28 @@
 const LS_MUTED = "backrooms.audio.muted";
 const LS_VOLUME = "backrooms.audio.volume";
 
-// Fill a buffer with brown (Brownian) noise: a running integral of white noise,
-// re-scaled since the integration heavily attenuates amplitude.
+// Fill a buffer with brown (Brownian) noise: a running integral of white noise.
+// A one-pole low-pass then shaves the residual high-frequency fizz so the bed
+// is a smooth rumble rather than a grainy hiss; the result is normalised so the
+// smoothing doesn't change perceived loudness.
 function fillBrownNoise(buffer) {
   for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
     const data = buffer.getChannelData(ch);
     let last = 0;
+    let smooth = 0;
+    let peak = 0;
     for (let i = 0; i < data.length; i++) {
       const white = Math.random() * 2 - 1;
-      last = (last + 0.02 * white) / 1.02;
-      data[i] = last * 3.5; // compensate for the low integrated gain
+      // Leaky integrator → brown noise (deeper leak = smoother, bassier).
+      last = (last + 0.015 * white) / 1.015;
+      // One-pole low-pass to smooth out remaining high-frequency crackle.
+      smooth += 0.08 * (last - smooth);
+      data[i] = smooth;
+      const a = Math.abs(smooth);
+      if (a > peak) peak = a;
     }
+    const norm = peak > 0 ? 0.9 / peak : 1;
+    for (let i = 0; i < data.length; i++) data[i] *= norm;
   }
 }
 
@@ -38,7 +49,7 @@ export class Ambience {
 
     this.muted = localStorage.getItem(LS_MUTED) === "1";
     const v = parseFloat(localStorage.getItem(LS_VOLUME));
-    this.volume = Number.isFinite(v) ? v : 0.35; // low by default
+    this.volume = Number.isFinite(v) ? v : 0.22; // low by default
   }
 
   // Build the graph. Must be called from a user gesture (e.g. the start click).
@@ -74,7 +85,7 @@ export class Ambience {
     // Roll off the very top so the bed stays a warm rumble, not a hiss.
     const bedFilter = ctx.createBiquadFilter();
     bedFilter.type = "lowpass";
-    bedFilter.frequency.value = 500;
+    bedFilter.frequency.value = 340;
     bed.connect(bedFilter).connect(this.bedGain).connect(this.master);
     bed.start();
 
