@@ -1,15 +1,13 @@
 {
   "name": "backrooms",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "A browser-based, first-person Backrooms exploration game. Wander an endless sickly-yellow liminal space where nearby presences leak into the world as slightly-off, dreamlike alterations. Single-player for now; NPCs mock multiplayer.",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
-    "context": "node scripts/update-context.mjs",
-    "context:check": "node scripts/update-context.mjs --check"
+    "preview": "vite preview"
   },
   "license": "ISC",
   "dependencies": {

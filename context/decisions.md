@@ -3,6 +3,13 @@
 Append-only, terse log of decisions that aren't obvious from the code. Newest
 first. One entry per decision: date · what · why.
 
+- **2026-07-11 · Cleared the feature roadmap; handed direction to Flynn.**
+  Removed all feature specs (`context/features/`), the auto-maintained
+  `context/STATE.md`, and its generator (`scripts/update-context.mjs` + the
+  `context` npm scripts). The game keeps everything already built; the *plan* is
+  intentionally a blank slate so Flynn (14) can reshape the game's goal in
+  `context/goal.md`. Earlier entries below that reference those files are kept as
+  historical record. See `FLYNN.md`.
 - **2026-07-11 · Single-player for now; NPCs mock multiplayer.** Avoid
   networking/backend complexity. Shared-lobby vision kept but delivered by NPCs
   (Feature 09); backend + real-time sync deferred. Presence mechanics built to
