@@ -3,6 +3,16 @@
 Append-only, terse log of decisions that aren't obvious from the code. Newest
 first. One entry per decision: date · what · why.
 
+- **2026-07-12 · Object registry supports glTF too; props sourced from CC0
+  libraries.** Extended `src/objects.js` with a `GLTFLoader` path alongside STL
+  (registry entries take `format: "gltf"`); both normalise to a cloneable
+  template Object3D (glTF keeps its own PBR materials, STL keeps the colour
+  override). Added five real-world-sized props (barrel, school chair, wooden
+  crate, shelf, cardboard box) from **Poly Haven**, whose entire library is
+  **CC0 / public domain** — no attribution or redistribution restriction, so
+  bundling into the repo is clean (see `public/models/gltf/NOTICE.md`).
+  Constraint for future assets: **CC0 / public-domain only** — verify per file,
+  since STL print libraries mix CC0/CC-BY/CC-BY-SA/CC-BY-NC/all-rights-reserved.
 - **2026-07-11 · STL models are a deliberate exception to "procedural-only
   assets."** Added `src/objects.js` (a registry + STLLoader cache) and
   `public/models/stl/` so special-room props can use real geometry, not just
