@@ -1,8 +1,10 @@
 # Feature 01 — The Empty Yellow (walkable base Backrooms)
 
-> Status: **proposed / not started**
+> Status: **implemented** (three.js + Vite)
 > Derives from: [`../goal.md`](../goal.md) §1, §4, §5.1, §5.5
 > This is a living feature doc; scope may shift as [`../goal.md`](../goal.md) evolves.
+> How to install/run the game lives in the root [`README.md`](../../README.md) —
+> this doc is the design record, not a run guide.
 
 ## 1. Purpose
 
@@ -118,15 +120,3 @@ A reviewer opening the game in a desktop browser can:
   generator is cheap insurance for `goal.md` §5.2–§5.5.
 - **Collision approach**: grid-cell lookup vs. mesh raycast. Grid lookup is
   likely simpler and faster given a tiled layout.
-
-## 9. Suggested build order
-
-1. Project scaffold: `index.html`, entry JS module, pinned three.js, static
-   dev server, basic render loop clearing to a yellow-ish fog.
-2. First-person controller: `PointerLockControls` + WASD, click-to-start.
-3. Single room: floor / walls / ceiling with placeholder yellow materials +
-   one fluorescent panel. Collision against that room.
-4. Procedural tiling: repeat/stream rooms around the player with load/unload.
-5. Aesthetic pass: wallpaper/carpet materials, fluorescent flicker,
-   `EffectComposer` grain + vignette.
-6. Polish + acceptance-criteria checkoff.
