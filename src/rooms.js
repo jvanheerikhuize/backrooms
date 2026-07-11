@@ -357,7 +357,7 @@ function addResearchProp(group, colliders, rng, room) {
   const spot = randomSpot(rng, room, Math.max(obj.halfX, obj.halfZ) + 0.3, colliders);
   if (!spot) return false;
   const { x, z } = spot;
-  const mesh = new THREE.Mesh(obj.geometry, obj.material); // shared, cached geometry — never mark disposable
+  const mesh = obj.object3D.clone(); // clone shares cached geometry/material — never mark disposable
   mesh.position.set(x, 0, z);
   mesh.rotation.y = rng() * Math.PI * 2;
   group.add(mesh);
