@@ -62,9 +62,11 @@ npm run preview    # serve the production build locally
 
 ## Status
 
-Early. The design lives in **[context/goal.md](./context/goal.md)** — a living
-document that evolves as insights change. Work is broken into feature specs
-under **[context/features/](./context/features/)**; see the
+Early. For a fast, always-current snapshot start at
+**[context/STATE.md](./context/STATE.md)** (auto-maintained). The full design
+lives in **[context/goal.md](./context/goal.md)** — a living document that
+evolves as insights change. Work is broken into feature specs under
+**[context/features/](./context/features/)**; see the
 **[backlog](./context/features/backlog.md)** for the full, prioritized list.
 
 Implemented so far:
