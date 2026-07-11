@@ -66,28 +66,23 @@ npm run preview    # serve the production build locally
 
 ## Status
 
-Early. For a fast, always-current snapshot start at
-**[context/STATE.md](./context/STATE.md)** (auto-maintained). The full design
-lives in **[context/goal.md](./context/goal.md)** — a living document that
-evolves as insights change. Work is broken into feature specs under
-**[context/features/](./context/features/)**; see the
-**[backlog](./context/features/backlog.md)** for the full, prioritized list.
+Early, and **open for direction** — there's no fixed feature roadmap. The design
+lives in **[context/goal.md](./context/goal.md)**, a living document that anyone
+(👋 especially Flynn — see **[FLYNN.md](./FLYNN.md)**) can help reshape.
 
-Implemented so far:
+What the game already does today:
 
-- **[01 — The Empty Yellow](./context/features/completed/01-empty-yellow.md)** — the
-  walkable, single-player base Backrooms: first-person navigation, an endless
-  procedurally-streamed world of yellow rooms and pillars, flickering
-  fluorescent lighting, and a VHS grain/vignette treatment. This is the base
-  state every later system (the leak, proximity reflection, NPCs) builds on.
-- **[03 — Audio & Ambience](./context/features/completed/03-audio-ambience.md)** — a
-  procedural brown-noise room-tone bed and a fluorescent hum coupled to the
-  light flicker, with a mute toggle (M). No audio assets — all Web Audio.
+- **The Empty Yellow** — a walkable, single-player base Backrooms: first-person
+  navigation through an endless procedurally-streamed world of yellow rooms and
+  pillars, with flickering fluorescent lighting.
+- **Audio & ambience** — a procedural brown-noise room-tone bed and a fluorescent
+  hum coupled to the light flicker, with a mute toggle (M). No audio assets — all
+  Web Audio.
+- **Found-footage camera** — a cut-scene layer (grain, VHS tracking, chromatic
+  aberration, camcorder HUD) used for the opening title screen.
 
-Next up (single-player): the leak/alteration system, NPCs as local presences,
-and proximity reflection driven by them.
-
-Deferred until multiplayer: the shared-lobby backend and real-time sync.
+Where it goes next is up for grabs — the leak/alteration system, NPCs as local
+presences, new levels, creatures… decide in [goal.md](./context/goal.md).
 
 ## Inspiration
 

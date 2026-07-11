@@ -7,9 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
-    "context": "node scripts/update-context.mjs",
-    "context:check": "node scripts/update-context.mjs --check"
+    "preview": "vite preview"
   },
   "license": "ISC",
   "dependencies": {

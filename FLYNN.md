@@ -68,8 +68,9 @@ That's it! Your dad gets a message and can add your change to the game.
 ## 💡 Easy first ideas
 
 - ✍️ Add your name to **[CONTRIBUTORS.md](./CONTRIBUTORS.md)** — a perfect first pull request!
-- 👾 Add a new creature or level idea to
-  **[context/features/10-storyline-episodes.md](./context/features/10-storyline-episodes.md)**.
+- 🧭 **Shape the game's goal.** Open **[context/goal.md](./context/goal.md)** and
+  change what the game is about — add a level, invent a creature, or a whole new
+  idea. Just tell Claude *"help me update the goal — I want …"*. It's yours now!
 - 🎨 Change a color or the fog in the game and see what happens.
 
 Have fun, Flynn. This is your game too now. 👾🟡

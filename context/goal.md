@@ -1,5 +1,13 @@
 # Backrooms Game — Goal & Design
 
+> ## 👋 Flynn — this is yours to shape!
+> This file describes **what the game is and why**. There's no fixed feature
+> roadmap anymore — *you* get to decide where it goes. Read it, then change
+> anything you like: add a level, invent a creature, or change the whole idea.
+> Open your terminal, start Claude, and say something like *"help me update the
+> goal — I want the game to also have …"*. See **[../FLYNN.md](../FLYNN.md)** for
+> how. Nothing here is set in stone. 🟡👾
+
 > **Living document.** This captures the current intent and design direction.
 > It will change over time as insights change — treat it as the evolving source
 > of truth for *what we're building and why*, not a frozen contract.
