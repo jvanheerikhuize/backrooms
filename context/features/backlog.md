@@ -15,6 +15,10 @@ Feature specs reflect their status through *where they live*:
 When a feature ships, its spec moves into `completed/` as part of that feature's
 final commit — see the workflow note at the bottom.
 
+> **Scope: single-player.** The game is single-player for now (no backend). The
+> shared-lobby vision is delivered by **NPCs** that mock networked players.
+> Multiplayer is deferred — see [`../goal.md`](../goal.md) "Current scope".
+
 | ID | Feature | Status | Aesthetic / lore root | Depends on |
 | --- | --- | --- | --- | --- |
 | [01](./completed/01-empty-yellow.md) | The Empty Yellow — walkable base | ✅ **Done** | §4 base look, §5.1 | — |
@@ -25,6 +29,7 @@ final commit — see the workflow note at the bottom.
 | [06](./06-liminal-detail-pass.md) | Liminal Environmental Detail Pass | Proposed | §4 damp/liminal | 01 |
 | [07](./07-green-glow-null-zones.md) | The Green Glow & Null Zones | Proposed | §6.7, §6.1 | 01 |
 | [08](./08-the-growth.md) | The Growth (corruption state) | Proposed | §6.6, §6.3 | 02 |
+| [09](./09-npc-presences.md) | NPC Presences (mock multiplayer) | Proposed | §5.2, §5.4, §6.4 | 02 |
 
 ## Themes
 
@@ -33,11 +38,14 @@ found-footage camera, 05 fluorescent overhaul, 06 liminal detail, 07 green
 glow. These deepen the look & feel and can ship in any order. (03 audio — done.)
 
 **Core mechanic**: 02 the leak — the signature system every later mechanic
-builds on. 08 the Growth extends it into a corruption state.
+builds on. 09 NPC presences then mock "other players" so proximity reflection
+works single-player; 08 the Growth extends the leak into a corruption state.
 
-**Not yet specced** (from `goal.md`, later): the shared-world backend + real-time
-sync, proximity reflection of other players, NPCs / Still Lifes / entities, and
-noclip threshold traversal between zones.
+**Deferred until multiplayer**: the shared-world backend + real-time sync, and
+proximity reflection of *networked* players (NPCs cover this single-player).
+
+**Not yet specced** (from `goal.md`, later): Still Lifes / entities, and noclip
+threshold traversal between zones.
 
 ## Workflow
 

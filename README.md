@@ -1,14 +1,19 @@
 # Backrooms
 
-A browser-based, first-person **Backrooms exploration game** — a shared lobby
-where the choices and inputs of other players (and NPCs) leak into the world
-around you as slightly-off, dreamlike alterations.
+A browser-based, first-person **Backrooms exploration game** where the choices
+and inputs of nearby presences leak into the world around you as slightly-off,
+dreamlike alterations.
+
+> **Single-player for now.** To keep complexity down, the game runs entirely in
+> the browser with no backend. The "shared lobby" of other presences is the
+> long-term vision; for now those presences are **NPCs** that mock what
+> networked players will eventually do. Real multiplayer is deferred.
 
 ## Concept
 
-The Backrooms starts as the classic sickly-yellow liminal space. But it's a
-**shared lobby**: as you move through it, the presence of other players and NPCs
-bleeds in, and the world reinterprets their influence — accurate in essence, but
+The Backrooms starts as the classic sickly-yellow liminal space. As you move
+through it, the presence of others (NPCs today, networked players later) bleeds
+in, and the world reinterprets their influence — accurate in essence, but
 usually *slightly off*. Your own input, in turn, alters the section of the
 Backrooms around you.
 
@@ -16,17 +21,17 @@ Backrooms around you.
   the world's mutations.
 - **The leak** — base yellow warps into a distorted interpretation of a nearby
   presence's world. Never a copy, always a Backrooms interpretation.
-- **Proximity** — get close to another player or NPC and the area reflects
+- **Proximity** — get close to a presence (an NPC for now) and the area reflects
   *their* choices.
-- **Fresh corner** — every new player noclips in at an untouched, pure-yellow
-  region of their own.
+- **Fresh corner** — you noclip in at an untouched, pure-yellow region of your own.
 
 ## Tech Stack
 
 - **Frontend** — vanilla HTML / CSS / JavaScript, rendered with
   [three.js](https://threejs.org/) and bundled/served by [Vite](https://vitejs.dev/).
-- **Backend** — Node.js, for real-time shared-world state sync and persistence
-  *(not yet built — see Status)*.
+- **Backend** — none. Single-player, fully client-side for now. A Node.js
+  shared-world backend is deferred until multiplayer is on the table; NPCs mock
+  it in the meantime.
 
 ## Getting Started
 
@@ -73,8 +78,10 @@ Implemented so far:
   procedural brown-noise room-tone bed and a fluorescent hum coupled to the
   light flicker, with a mute toggle (M). No audio assets — all Web Audio.
 
-Not yet built: the shared-lobby backend, the leak/alteration system, proximity
-reflection, and NPCs.
+Next up (single-player): the leak/alteration system, NPCs as local presences,
+and proximity reflection driven by them.
+
+Deferred until multiplayer: the shared-lobby backend and real-time sync.
 
 ## Inspiration
 

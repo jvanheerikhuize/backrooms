@@ -30,8 +30,8 @@ iteration, no networking) before the shared-world backend feeds it later.
 
 - **Signature.** Each presence has a seeded signature: a hue plus a few
   distortion parameters. Solo, that is just the player — but modelling it as a
-  per-presence signature now means multiplayer drops in other signatures with
-  no rework.
+  per-presence signature now means **NPCs (Feature 09), and later networked
+  players, drop in other signatures with no rework.**
 - **Presence accumulation.** Moving through and dwelling in the world raises an
   *influence* value in nearby cells, fading with distance so alterations stay
   localized to the player's section (§5.3). No typing, no menus — the leak
@@ -52,14 +52,16 @@ iteration, no networking) before the shared-world backend feeds it later.
 
 ## 5. Scope (out — deferred)
 
-- All networking / backend / real-time sync (later feature; it swaps the store
-  for a synced, persistent one).
-- True proximity reflection of *other players* (§5.4) — there are no other
-  players until the backend exists.
-- NPCs, Still Lifes, entities.
+- All networking / backend / real-time sync — **deferred while single-player**
+  (later feature; it swaps the store for a synced, persistent one).
+- Other presences and proximity reflection (§5.4) — the game is single-player,
+  so "other presences" come from **NPCs (Feature 09)**, not networked players.
+  This feature ships the influence system *the player* drives; NPCs plug into
+  the same system next.
+- NPCs themselves, Still Lifes, entities (Feature 09 and later).
 - **Optional stretch:** one pre-baked "foreign" leaked zone so the player can
   preview what another presence's leak looks like — a cheap taste of proximity
-  reflection without networking.
+  reflection before NPCs land.
 
 ## 6. Acceptance criteria
 

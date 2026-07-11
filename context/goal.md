@@ -4,6 +4,15 @@
 > It will change over time as insights change — treat it as the evolving source
 > of truth for *what we're building and why*, not a frozen contract.
 
+> **Current scope (as of 2026-07): single-player.** To avoid the complexity of
+> networking and a live backend, the game is single-player for now. The
+> "shared lobby" and "other presences" below remain the long-term vision, but
+> are **mocked with NPCs** — locally-simulated presences that carry a signature,
+> leak into the world, and trigger proximity reflection exactly as a networked
+> player eventually would. Real multiplayer (Node backend, real-time sync,
+> persistence) is **deferred**, and every mechanic here is built to be driven by
+> a local NPC now and a networked player later with no rework.
+
 ## 1. Overview
 A browser-based, first-person exploration game built around the look and
 feel of the "Backrooms" — the liminal-space internet mythos of endless,
@@ -27,6 +36,9 @@ of their influence, never an exact copy.
 - Frontend in **HTML / CSS / JavaScript**.
 - Backend in **Node.js**, handling real-time state sync and persistence for
   the shared world. Specific Node libraries/frameworks are open.
+  **Deferred** while the game is single-player (see the Current-scope note
+  above) — nothing built so far needs it, and NPCs mock the multiplayer layer
+  client-side.
 
 ## 4. Aesthetic / "Look & Feel" Requirements
 - Dominant sickly-yellow wallpaper palette as the **base** state.
@@ -51,6 +63,9 @@ of their influence, never an exact copy.
 - Reflections are **accurate in essence but usually slightly "off"** — the
   world remembers other players imperfectly, producing an uncanny,
   dreamlike distortion rather than a faithful mirror.
+- **Single-player for now:** there are no networked players yet. NPCs stand in
+  for "other players" as local presences (see §5.4, §7), so the shared-lobby
+  *feel* is delivered without a backend.
 
 ### 5.3 Player Influence
 - **Player input alters a section of the Backrooms.** Each player leaves a
@@ -138,8 +153,10 @@ is mapped to how it can reinforce this game's shared-lobby / leak mechanics.
   grain, tracking distortion), intensifying as the world leaks.
 
 ## 7. Open Questions / To Resolve
-- **NPCs**: what are they, and where do their "choices/input" come from
-  (scripted, generated, echoes of past players)?
+- **NPCs** *(now the near-term priority — they mock multiplayer while the game
+  is single-player)*: what are they, and where do their "choices/input" come
+  from (scripted, generated, echoes of past players)? They carry a signature
+  and drive the leak + proximity reflection just as a networked player would.
 - **Persistence**: do alterations persist over time, or decay/reset?
 - **Player input surface**: what specifically can a player *input* to alter
   a section (movement traces, placed objects, text, choices from prompts)?
