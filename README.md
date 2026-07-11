@@ -60,7 +60,9 @@ npm run preview    # serve the production build locally
 | **Click** | Enter (locks the mouse pointer) |
 | **W A S D** / arrow keys | Move |
 | **Mouse** | Look |
-| **Shift** | Run |
+| **Shift** | Run (drains the stamina bar) |
+| **C** | Replay the found-footage cut-scene |
+| **V** | Reduce camera motion (accessibility) |
 | **M** | Mute / unmute audio |
 | **Esc** | Release the pointer |
 
