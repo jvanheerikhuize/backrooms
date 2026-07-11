@@ -5,7 +5,7 @@ description: Use when generating the endless, disorienting Backrooms layout — 
 
 # Procedural Backrooms Generation
 
-Generate the endless liminal space from `SPECIFICATION.md` §5 and the lore in §6
+Generate the endless liminal space from `context/goal.md` §5 and the lore in §6
 (room mimicry, room duplication, fresh corners, Null Zones).
 
 ## Core model

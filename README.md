@@ -28,8 +28,13 @@ Backrooms around you.
 
 ## Status
 
-Early / spec-driven — no gameplay code yet. See **[SPECIFICATION.md](./SPECIFICATION.md)**
-for the full design, mechanics, and open questions.
+Early / spec-driven — no gameplay code yet. See **[context/goal.md](./context/goal.md)**
+for the full design, mechanics, and open questions. `goal.md` is a living
+document — it will evolve as insights change over time.
+
+Work is broken into feature specs under **[context/features/](./context/features/)**.
+First up: **[01 — The Empty Yellow](./context/features/01-empty-yellow.md)**, the
+walkable single-player base Backrooms that every later system builds on.
 
 ## Inspiration
 

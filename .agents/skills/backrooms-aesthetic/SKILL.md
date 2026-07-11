@@ -5,7 +5,7 @@ description: Use when styling any visual/audio element of the Backrooms game —
 
 # Backrooms Aesthetic
 
-Render the signature look & feel defined in `SPECIFICATION.md` §4 using only
+Render the signature look & feel defined in `context/goal.md` §4 using only
 vanilla HTML/CSS/JS (no frameworks, no image/CSS libraries).
 
 ## Base state (classic yellow)

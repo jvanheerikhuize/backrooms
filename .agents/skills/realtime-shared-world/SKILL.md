@@ -5,7 +5,7 @@ description: Use when building the Node.js backend that makes the Backrooms a sh
 
 # Realtime Shared World (Node.js backend)
 
-Implement the shared-lobby backend from `SPECIFICATION.md` §2, §3, §5.2 using
+Implement the shared-lobby backend from `context/goal.md` §2, §3, §5.2 using
 Node.js.
 
 ## Responsibilities

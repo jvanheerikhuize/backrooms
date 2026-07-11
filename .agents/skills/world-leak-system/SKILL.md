@@ -5,7 +5,7 @@ description: Use when implementing the core "leak" mechanic — player/NPC input
 
 # World Leak System
 
-Implement the game's central mechanic from `SPECIFICATION.md` §5.2–5.6 and §6.2.
+Implement the game's central mechanic from `context/goal.md` §5.2–5.6 and §6.2.
 
 ## Player influence
 - A player's input (§5.3) writes an **alteration record** onto the section they

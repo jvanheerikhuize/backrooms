@@ -5,7 +5,7 @@ description: Use when implementing the player's first-person view and movement t
 
 # First-Person Navigation
 
-Implement the fixed first-person perspective from `SPECIFICATION.md` §5.1 in
+Implement the fixed first-person perspective from `context/goal.md` §5.1 in
 vanilla JS.
 
 ## Rendering approach

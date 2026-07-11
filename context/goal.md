@@ -1,4 +1,8 @@
-# Backrooms Game — Specification
+# Backrooms Game — Goal & Design
+
+> **Living document.** This captures the current intent and design direction.
+> It will change over time as insights change — treat it as the evolving source
+> of truth for *what we're building and why*, not a frozen contract.
 
 ## 1. Overview
 A browser-based, first-person exploration game built around the look and
