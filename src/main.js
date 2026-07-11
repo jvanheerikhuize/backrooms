@@ -8,10 +8,12 @@ import { World } from "./world.js";
 import { Player } from "./player.js";
 import { createComposer } from "./postfx.js";
 import { Ambience } from "./audio.js";
+import { Cutscene } from "./cutscene.js";
 
 const canvas = document.getElementById("scene");
 const overlay = document.getElementById("overlay");
 const audioIndicator = document.getElementById("audio-indicator");
+const cutsceneHud = document.getElementById("cutscene-hud");
 
 // Renderer.
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -45,6 +47,20 @@ const fx = createComposer(renderer, scene, camera);
 
 // Build the initial chunks around the spawn ("fresh corner").
 world.update(0, 0);
+
+// Found-footage cut-scene layer (Feature 04). The opening screen plays as a
+// looping cut-scene behind the title; gameplay runs the clean view.
+const cutscene = new Cutscene(camera, fx, world, cutsceneHud);
+cutscene.startOpening();
+
+// Debug hook for verification tooling.
+window.__dbgCutscene = () => ({
+  active: cutscene.active,
+  mode: cutscene.mode,
+  found: +cutscene.found.toFixed(2),
+  distortion: +fx.getDistortion().toFixed(2),
+  reduceMotion: cutscene.reduceMotion,
+});
 
 // Lightweight debug hook (position readout) for verification tooling.
 window.__dbgPos = () => ({
@@ -80,9 +96,11 @@ function updateAudioIndicator(flash) {
 }
 updateAudioIndicator(false);
 
-// Overlay / pointer-lock wiring.
+// Overlay / pointer-lock wiring. Clicking ends the opening cut-scene and hands
+// off to the clean gameplay view.
 overlay.addEventListener("click", () => {
   ambience.start(); // must run inside the user gesture
+  cutscene.stop();
   player.lock();
 });
 player.controls.addEventListener("lock", () => {
@@ -98,12 +116,28 @@ document.addEventListener("visibilitychange", () => {
   else if (player.isLocked) ambience.resume();
 });
 
-// Mute toggle (M).
+// Mute toggle (M) + Feature 04 cut-scene controls.
 window.addEventListener("keydown", (e) => {
   if (e.code === "KeyM") {
     ambience.toggleMute();
     updateAudioIndicator(true);
   }
+
+  // Trigger a scripted in-game reveal cut-scene (C) while playing. It takes
+  // over the camera, auto-stops, and returns control to the player.
+  if (e.code === "KeyC" && player.isLocked && !cutscene.active) {
+    cutscene.startReveal();
+  }
+
+  // "Reduce camera motion" accessibility toggle (V) — applies to the opening
+  // loop and in-game cut-scenes alike.
+  if (e.code === "KeyV") {
+    cutscene.setReduceMotion(!cutscene.reduceMotion);
+  }
+
+  // Test control: ramp cut-scene distortion calm↔heavy with [ and ].
+  if (e.code === "BracketRight") fx.setDistortion(fx.getDistortion() + 0.15);
+  if (e.code === "BracketLeft") fx.setDistortion(fx.getDistortion() - 0.15);
 });
 
 // Resize.
@@ -129,7 +163,14 @@ function animate() {
   const dt = Math.min(clock.getDelta(), 0.05); // clamp on tab refocus
   const t = clock.elapsedTime;
 
-  player.update(dt, world.collidersNear(camera.position.x, camera.position.z));
+  // During a cut-scene the camera is driven by the cut-scene rig, not the
+  // player; otherwise normal first-person movement applies.
+  if (cutscene.active) {
+    cutscene.update(dt, t);
+  } else {
+    player.update(dt, world.collidersNear(camera.position.x, camera.position.z));
+    cutscene.update(dt, t); // eases the found-FX back to clean after a cut-scene
+  }
 
   // Keep the world streamed around the player.
   world.update(camera.position.x, camera.position.z);
