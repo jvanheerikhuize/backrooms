@@ -97,10 +97,18 @@ window.__dbgCutscene = () => ({
 window.__dbgPos = () => ({
   x: +camera.position.x.toFixed(2),
   z: +camera.position.z.toFixed(2),
+  zone: world.profileAt(camera.position.x, camera.position.z),
   chunks: world.chunks.size,
   lights: world.collectLights().length,
   litNow: lightPool.filter((l) => l.visible).length,
 });
+
+// Dev teleport for exploring the different layout zones during testing.
+window.__dbgTeleport = (x, z) => {
+  camera.position.set(x, CONFIG.eyeHeight, z);
+  world.update(x, z);
+  return world.profileAt(x, z);
+};
 
 // Player/stamina debug hook for verification tooling.
 window.__dbgPlayer = () => ({

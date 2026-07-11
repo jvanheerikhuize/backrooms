@@ -91,5 +91,16 @@ export function createMaterials() {
     roughness: 0.4,
   });
 
-  return { wall, carpet, ceiling, lightPanel, _textures: [wallTex, carpetTex] };
+  // Encounter-zone floor marker — a faint green glow reserved for future
+  // random-encounter / null-zone content (goal.md §6.7).
+  const marker = new THREE.MeshStandardMaterial({
+    color: 0x0a1a0d,
+    emissive: 0x2bff6a,
+    emissiveIntensity: 0.7,
+    roughness: 0.6,
+    transparent: true,
+    opacity: 0.85,
+  });
+
+  return { wall, carpet, ceiling, lightPanel, marker, _textures: [wallTex, carpetTex] };
 }
