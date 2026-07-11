@@ -13,16 +13,28 @@
   <body>
     <canvas id="scene"></canvas>
 
+    <!-- Camcorder HUD — only visible during cut-scenes (Feature 04) -->
+    <div id="cutscene-hud">
+      <div class="cc-top">
+        <span class="cc-rec"><span class="cc-dot"></span>REC</span>
+        <span class="cc-battery">▮▮▯</span>
+      </div>
+      <div class="cc-bottom">
+        <span class="cc-stamp">▶ 11·07·1996&nbsp;&nbsp;&nbsp;03:33:07</span>
+        <span class="cc-tracking">TRACKING</span>
+      </div>
+    </div>
+
     <!-- Ambient-audio state indicator (toggle with M) -->
     <div id="audio-indicator">🔊 audio</div>
 
-    <!-- Click-to-start overlay: pointer lock must be user-initiated -->
+    <!-- Click-to-start overlay: the opening plays as found-footage behind this -->
     <div id="overlay">
       <div class="overlay-inner">
         <h1>THE EMPTY YELLOW</h1>
         <p class="tag">You have noclipped out of reality.</p>
         <p class="hint">Click to enter</p>
-        <p class="controls">WASD to move &nbsp;·&nbsp; Mouse to look &nbsp;·&nbsp; M to mute &nbsp;·&nbsp; Esc to release</p>
+        <p class="controls">WASD move &nbsp;·&nbsp; Mouse look &nbsp;·&nbsp; C cut-scene &nbsp;·&nbsp; V reduce motion &nbsp;·&nbsp; M mute &nbsp;·&nbsp; Esc release</p>
       </div>
     </div>
 

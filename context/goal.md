@@ -148,9 +148,11 @@ is mapped to how it can reinforce this game's shared-lobby / leak mechanics.
 
 ### 6.9 Analog / Found-Footage Presentation
 - The series' signature is degraded VHS / found-footage camerawork.
-- **Use in game**: reinforces the existing grain/VHS aesthetic requirement —
-  the first-person view is framed as a handheld camera feed (timestamp,
-  grain, tracking distortion), intensifying as the world leaks.
+- **Use in game**: reinforces the existing grain/VHS aesthetic requirement.
+  The heavy handheld-camcorder treatment (timestamp, tracking distortion,
+  chromatic aberration) is reserved for **cut-scenes** — the opening screen and
+  scripted reveals — while live gameplay keeps a cleaner, readable view. See
+  [`features/04-found-footage-camera.md`](features/04-found-footage-camera.md).
 
 ## 7. Open Questions / To Resolve
 - **NPCs** *(now the near-term priority — they mock multiplayer while the game
