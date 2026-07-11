@@ -143,28 +143,34 @@ function pointBlocked(x, z) {
 // right at its center). Requires the destination chunk to already be
 // streamed in (colliders known) — callers run world.update() first. Walks
 // an outward ring search for the nearest clear point if the exact spot is
-// blocked.
+// blocked. Returns null (instead of silently accepting a still-blocked
+// point) if nothing clear turns up within the search radius — a sign the
+// target is in a genuinely cramped/walled-in spot, which callers should
+// treat as "try somewhere else", not "teleport there anyway".
 function findClearSpot(x, z) {
   if (!pointBlocked(x, z)) return { x, z };
-  const rings = [0.6, 1.2, 1.8, 2.4, 3.2, 4.0, 5.0, 6.0];
+  const rings = [0.6, 1.2, 1.8, 2.4, 3.2, 4.0, 5.0, 6.0, 7.5, 9.0];
   for (const r of rings) {
-    for (let a = 0; a < 12; a++) {
-      const ang = (a / 12) * Math.PI * 2;
+    for (let a = 0; a < 16; a++) {
+      const ang = (a / 16) * Math.PI * 2;
       const px = x + Math.cos(ang) * r;
       const pz = z + Math.sin(ang) * r;
       if (!pointBlocked(px, pz)) return { x: px, z: pz };
     }
   }
-  return { x, z }; // give up (very rare) — still better than refusing to move
+  return null;
 }
 
 // Teleport to a random special room (dev menu option 1 — T then 1). Hit it
-// again for a different one.
+// again for a different one. Rooms are guaranteed enterable and never
+// sealed off (see rooms.js's escape corridor), so a clear landing spot
+// should always exist within the search radius; the room's own centre is
+// used as a last-resort fallback in the vanishingly rare case it doesn't.
 function teleportToRandomRoom() {
   const room = world.randomRoom(camera.position.x, camera.position.z);
   if (!room) return null;
   world.update(room.x, room.z); // stream the chunk in first so colliders are known
-  const spot = findClearSpot(room.x, room.z);
+  const spot = findClearSpot(room.x, room.z) ?? { x: room.x, z: room.z };
   camera.position.set(spot.x, CONFIG.eyeHeight, spot.z);
   world.update(spot.x, spot.z);
   return { x: +spot.x.toFixed(2), z: +spot.z.toFixed(2), theme: room.theme, style: room.style };
@@ -172,17 +178,33 @@ function teleportToRandomRoom() {
 window.__dbgTeleportRoom = teleportToRandomRoom;
 
 // Teleport to stand in front of a black wall arrow (dev menu option 2).
+// Unlike rooms, ordinary maze walls have no enclosure guarantee — an arrow
+// can end up on the wall of a small pocket the surrounding maze happened to
+// box in. Rather than trust the first randomly-picked arrow, this tries up
+// to 8 distinct known arrows (shuffled) and picks the first whose landing
+// spot is already clear or only needed a small nudge — a spot that needed a
+// big search is exactly the "cramped/enclosed" case to avoid.
 function teleportToArrow() {
-  const arrow = world.randomArrow(camera.position.x, camera.position.z);
-  if (!arrow) return null;
-  world.update(arrow.standX, arrow.standZ);
-  const spot = findClearSpot(arrow.standX, arrow.standZ);
-  camera.position.set(spot.x, CONFIG.eyeHeight, spot.z);
-  player.yaw = arrow.yaw;
-  player.pitch = 0;
-  camera.rotation.set(0, arrow.yaw, 0);
-  world.update(spot.x, spot.z);
-  return { x: +spot.x.toFixed(2), z: +spot.z.toFixed(2) };
+  world.randomArrow(camera.position.x, camera.position.z); // make sure a pool of arrows is known
+  const pool = [...world.arrows];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  for (const arrow of pool.slice(0, 8)) {
+    world.update(arrow.standX, arrow.standZ);
+    const spot = findClearSpot(arrow.standX, arrow.standZ);
+    if (!spot) continue; // nothing clear within the search radius at all — definitely skip
+    const dist = Math.hypot(spot.x - arrow.standX, spot.z - arrow.standZ);
+    if (dist > 2.5) continue; // needed a big nudge — likely a cramped pocket, try another arrow
+    camera.position.set(spot.x, CONFIG.eyeHeight, spot.z);
+    player.yaw = arrow.yaw;
+    player.pitch = 0;
+    camera.rotation.set(0, arrow.yaw, 0);
+    world.update(spot.x, spot.z);
+    return { x: +spot.x.toFixed(2), z: +spot.z.toFixed(2) };
+  }
+  return null; // every sampled arrow was in a cramped spot — extremely rare
 }
 window.__dbgTeleportArrow = teleportToArrow;
 

@@ -35,6 +35,15 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 // targetSize    metres — the model's longest bounding-box dimension is scaled
 //               to this (models arrive in arbitrary / real-world units)
 // rotateXNeg90  STL only — rotate Z-up source data into our Y-up scene
+// roundFootprint  this game's colliders are all axis-aligned rectangles —
+//               fine for boxy shapes, but a round object (like a disk) gets
+//               a square collider that reaches past the mesh at the
+//               corners, blocking the player on what looks like open floor.
+//               Shrinks the collider to a square inscribed inside the
+//               round footprint instead of one that circumscribes it, so
+//               it never blocks more than the visible mesh (it can let you
+//               stand a little closer at the true corners of the circle,
+//               which reads far better than phantom blocking).
 // color/metalness/roughness  STL only — build its MeshStandardMaterial
 export const OBJECT_REGISTRY = [
   // ── three.js MIT example STLs (Z-up CAD) ──────────────────────────────────
@@ -54,6 +63,7 @@ export const OBJECT_REGISTRY = [
     label: "research equipment — slotted disk",
     targetSize: 0.4,
     rotateXNeg90: true,
+    roundFootprint: true,
     color: 0x7a7d78,
     metalness: 0.6,
     roughness: 0.4,
@@ -160,6 +170,13 @@ function loadOne(entry) {
   return loader(entry)
     .then((object3D) => {
       const dims = normalize(object3D, entry.targetSize);
+      if (entry.roundFootprint) {
+        // Inscribed square (÷√2 of the smaller side) instead of the full
+        // bounding box — see the roundFootprint comment above.
+        const inscribed = Math.min(dims.halfX, dims.halfZ) / Math.SQRT2;
+        dims.halfX = inscribed;
+        dims.halfZ = inscribed;
+      }
       cache.set(entry.id, { object3D, ...dims });
     })
     .catch((err) => {

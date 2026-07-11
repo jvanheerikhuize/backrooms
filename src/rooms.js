@@ -522,27 +522,25 @@ const partyMats = [0xb84a4a, 0x4a7fb8, 0xd4b23a, 0x4aa662, 0xb84a94].map(
 const plateMat = new THREE.MeshStandardMaterial({ color: 0xe8e2d0, roughness: 0.5 });
 const cakeMat = new THREE.MeshStandardMaterial({ color: 0xe0b98a, roughness: 0.6 });
 const frostingMat = new THREE.MeshStandardMaterial({ color: 0xd66fa0, roughness: 0.5 });
+const cherryMat = new THREE.MeshStandardMaterial({ color: 0x9c1f2e, roughness: 0.35 });
 
-// A paper plate with one cake slice on it. The slice is a 3-sided prism
-// (a triangular cross-section) rather than a box or cylinder — reads as a
-// wedge shape lying on the plate.
+// A paper plate sitting on the table, with one cake slice on it. The slice
+// is a 3-sided prism (a triangular cross-section) rather than a box or
+// cylinder — reads as a wedge shape — topped with a frosting layer and a
+// cherry.
 function addCakeOnPlate(group, rng, tableX, tableZ, tableTopY) {
-  const plateR = 0.13;
+  const plateR = 0.17;
   addDecor(group, new THREE.CylinderGeometry(plateR, plateR, 0.012, 16), plateMat, tableX, tableTopY + 0.006, tableZ);
 
-  const sliceR = 0.075;
-  const sliceH = 0.06;
+  const sliceR = 0.1;
+  const sliceH = 0.085;
   const rotY = rng() * Math.PI * 2;
   addDecor(group, new THREE.CylinderGeometry(sliceR, sliceR, sliceH, 3), cakeMat, tableX, tableTopY + 0.012 + sliceH / 2, tableZ, rotY);
-  addDecor(
-    group,
-    new THREE.CylinderGeometry(sliceR * 0.85, sliceR * 0.85, 0.012, 3),
-    frostingMat,
-    tableX,
-    tableTopY + 0.012 + sliceH + 0.006,
-    tableZ,
-    rotY
-  );
+  const frostingY = tableTopY + 0.012 + sliceH + 0.007;
+  addDecor(group, new THREE.CylinderGeometry(sliceR * 0.85, sliceR * 0.85, 0.014, 3), frostingMat, tableX, frostingY, tableZ, rotY);
+
+  const cherryR = 0.02;
+  addDecor(group, new THREE.SphereGeometry(cherryR, 8, 6), cherryMat, tableX, frostingY + 0.007 + cherryR, tableZ);
 }
 
 // Small flat confetti pieces scattered on the floor — cosmetic only, like
@@ -568,43 +566,10 @@ function addConfetti(group, rng, room) {
   }
 }
 
-// A streamer sagging between two random points near the ceiling, built from
-// several straight segments following a shallow parabolic dip rather than
-// one rigid straight strip.
-function addStreamer(group, rng, room, mat) {
-  const y = CONFIG.wallHeight - (0.15 + rng() * 0.3);
-  const sag = 0.25 + rng() * 0.35;
-  const halfW = Math.max(room.w / 2 - 0.6, 1);
-  const halfD = Math.max(room.d / 2 - 0.6, 1);
-  const ax = room.x + (rng() * 2 - 1) * halfW;
-  const az = room.z + (rng() * 2 - 1) * halfD;
-  const bx = room.x + (rng() * 2 - 1) * halfW;
-  const bz = room.z + (rng() * 2 - 1) * halfD;
-  const width = 0.1 + rng() * 0.06;
-  const segs = 8;
-
-  let prev = { x: ax, y, z: az };
-  for (let i = 1; i <= segs; i++) {
-    const t = i / segs;
-    const dip = Math.sin(Math.PI * t) * sag; // 0 at both ends, peaks at the middle
-    const cur = { x: ax + (bx - ax) * t, y: y - dip, z: az + (bz - az) * t };
-
-    const dx = cur.x - prev.x;
-    const dy = cur.y - prev.y;
-    const dz = cur.z - prev.z;
-    const flatLen = Math.hypot(dx, dz);
-    const len = Math.hypot(flatLen, dy);
-
-    const geo = new THREE.BoxGeometry(width, 0.02, len);
-    geo.userData.disposable = true;
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set((prev.x + cur.x) / 2, (prev.y + cur.y) / 2, (prev.z + cur.z) / 2);
-    mesh.rotation.y = Math.atan2(dx, dz);
-    mesh.rotation.x = -Math.atan2(dy, flatLen);
-    group.add(mesh);
-    prev = cur;
-  }
-}
+// Streamers across the ceiling were tried here and pulled back out — a
+// procedurally-sagging strip built from boxes never quite reads right.
+// Flynn's adding a real streamer model to objects.js later; re-add a call
+// to place it here once that's registered.
 
 function addPartyTheme(group, colliders, rng, room) {
   // Table stays at the room's true centre — always well outside the
@@ -619,11 +584,6 @@ function addPartyTheme(group, colliders, rng, room) {
 
   addCakeOnPlate(group, rng, tx, tz, tableH);
   addConfetti(group, rng, room);
-
-  const streamerCount = 2 + Math.floor(rng() * 3); // 2-4
-  for (let i = 0; i < streamerCount; i++) {
-    addStreamer(group, rng, room, partyMats[Math.floor(rng() * partyMats.length)]);
-  }
 }
 
 // ── Wall-mounted decorations. Purely cosmetic (no collider) — this game's
@@ -682,11 +642,23 @@ function addWallDecor(group, rng, room) {
     const mat = festiveMats[Math.floor(rng() * festiveMats.length)];
     mountBox(group, room, side, w * 0.7, h * 0.65, 0.015, mat, y, along, 0.02);
   } else if (room.theme === "toys") {
-    // A creepy height-chart scrawl — small tick marks climbing the wall.
-    const tickCount = 4 + Math.floor(rng() * 3);
-    for (let i = 0; i < tickCount; i++) {
-      const y = 0.5 + i * (0.18 + rng() * 0.06);
-      mountBox(group, room, side, 0.16 + rng() * 0.1, 0.02, 0.01, woodMat, y, along + (rng() * 0.2 - 0.1), 0);
+    // A small shelf with a couple of toys on it — same shape as storage's
+    // wall shelf below, just toy-coloured, so it reads clearly as "toys on
+    // a shelf" rather than an ambiguous scatter of thin marks.
+    const w = 0.5 + rng() * 0.3;
+    const y = 1.2 + rng() * 0.5;
+    mountBox(group, room, side, w, 0.04, 0.16, woodMat, y, along, 0);
+    const px = wg.cx + wg.tx * along;
+    const pz = wg.cz + wg.tz * along;
+    const itemCount = 1 + Math.floor(rng() * 2);
+    for (let i = 0; i < itemCount; i++) {
+      const mat = toyMats[Math.floor(rng() * toyMats.length)];
+      const size = 0.08 + rng() * 0.06;
+      const off = (rng() * 2 - 1) * (w / 2 - size);
+      const ix = px + wg.tx * off + wg.nx * (CONFIG.wallThickness / 2 + 0.09);
+      const iz = pz + wg.tz * off + wg.nz * (CONFIG.wallThickness / 2 + 0.09);
+      const geo = rng() < 0.5 ? new THREE.BoxGeometry(size, size, size) : new THREE.CylinderGeometry(size / 2, size / 2, size, 8);
+      addDecor(group, geo, mat, ix, y + 0.02 + size / 2, iz);
     }
   } else if (room.theme === "camp") {
     // A pinned paper or map.
