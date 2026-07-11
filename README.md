@@ -64,12 +64,12 @@ under **[context/features/](./context/features/)**; see the
 
 Implemented so far:
 
-- **[01 — The Empty Yellow](./context/features/01-empty-yellow.md)** — the
+- **[01 — The Empty Yellow](./context/features/completed/01-empty-yellow.md)** — the
   walkable, single-player base Backrooms: first-person navigation, an endless
   procedurally-streamed world of yellow rooms and pillars, flickering
   fluorescent lighting, and a VHS grain/vignette treatment. This is the base
   state every later system (the leak, proximity reflection, NPCs) builds on.
-- **[03 — Audio & Ambience](./context/features/03-audio-ambience.md)** — a
+- **[03 — Audio & Ambience](./context/features/completed/03-audio-ambience.md)** — a
   procedural brown-noise room-tone bed and a fluorescent hum coupled to the
   light flicker, with a mute toggle (M). No audio assets — all Web Audio.
 

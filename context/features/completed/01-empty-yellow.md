@@ -1,9 +1,9 @@
 # Feature 01 — The Empty Yellow (walkable base Backrooms)
 
 > Status: **implemented** (three.js + Vite)
-> Derives from: [`../goal.md`](../goal.md) §1, §4, §5.1, §5.5
-> This is a living feature doc; scope may shift as [`../goal.md`](../goal.md) evolves.
-> How to install/run the game lives in the root [`README.md`](../../README.md) —
+> Derives from: [`goal.md`](../../goal.md) §1, §4, §5.1, §5.5
+> This is a living feature doc; scope may shift as [`goal.md`](../../goal.md) evolves.
+> How to install/run the game lives in the root [`README.md`](../../../README.md) —
 > this doc is the design record, not a run guide.
 
 ## 1. Purpose

@@ -1,11 +1,11 @@
 # Feature 03 — Audio & Ambience (brown-noise bed)
 
 > Status: **implemented** (Web Audio API, no assets)
-> Derives from: [`../goal.md`](../goal.md) §4 (muffled ambient audio), §6.5
+> Derives from: [`goal.md`](../../goal.md) §4 (muffled ambient audio), §6.5
 > (audio mimicry), and §7 (audio open question — this feature resolves it as
 > *in scope*).
-> This is a living feature doc; scope may shift as [`../goal.md`](../goal.md) evolves.
-> How to run / the mute control lives in the root [`README.md`](../../README.md);
+> This is a living feature doc; scope may shift as [`goal.md`](../../goal.md) evolves.
+> How to run / the mute control lives in the root [`README.md`](../../../README.md);
 > this doc is the design record.
 
 ## 1. Purpose
