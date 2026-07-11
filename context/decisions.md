@@ -3,6 +3,19 @@
 Append-only, terse log of decisions that aren't obvious from the code. Newest
 first. One entry per decision: date · what · why.
 
+- **2026-07-11 · Config-driven layout zones (world generation).** Flynn's second
+  feature. The grid is
+  partitioned into square zones, each assigned a weighted-random profile — open,
+  rooms, corridor, encounter — so the space changes character as you walk.
+  Profiles live entirely in `config.js` (`zones.profiles`), making zone shape the
+  single knob for reshaping the world. Replaced the earlier per-region corridor
+  system; corridors are now one profile among several. Encounter zones drop a
+  green-glow floor marker, reserved for future Null-Zone content (goal.md §6.7).
+- **2026-07-11 · Flynn's first pass: world, lighting, movement & stamina.** First
+  contribution shaping the game's feel — sparser/brighter fixtures, a dark
+  uniform ceiling, and a sprint system with a stamina bar (drains while running,
+  regenerates when not, locks out sprint while exhausted). Established Flynn as a
+  contributor (see `CONTRIBUTORS.md`).
 - **2026-07-11 · Cleared the feature roadmap; handed direction to Flynn.**
   Removed all feature specs (`context/features/`), the auto-maintained
   `context/STATE.md`, and its generator (`scripts/update-context.mjs` + the
