@@ -1,0 +1,19 @@
+{
+  "name": "backrooms",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A browser-based, first-person Backrooms exploration game — a shared lobby where the choices and inputs of other players (and NPCs) leak into the world around you as slightly-off, dreamlike alterations.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "three": "^0.169.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.8"
+  }
+}

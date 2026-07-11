@@ -23,22 +23,57 @@ Backrooms around you.
 
 ## Tech Stack
 
-- **Frontend** — vanilla HTML / CSS / JavaScript.
-- **Backend** — Node.js, for real-time shared-world state sync and persistence.
+- **Frontend** — vanilla HTML / CSS / JavaScript, rendered with
+  [three.js](https://threejs.org/) and bundled/served by [Vite](https://vitejs.dev/).
+- **Backend** — Node.js, for real-time shared-world state sync and persistence
+  *(not yet built — see Status)*.
+
+## Getting Started
+
+Requires [Node.js](https://nodejs.org/) 18+.
+
+```bash
+npm install       # install dependencies (three.js, Vite)
+npm run dev        # start the dev server → http://localhost:5173
+```
+
+Open the printed URL and **click to enter**. To make a production build:
+
+```bash
+npm run build      # output to dist/
+npm run preview    # serve the production build locally
+```
+
+### Controls
+
+| Input | Action |
+| --- | --- |
+| **Click** | Enter (locks the mouse pointer) |
+| **W A S D** / arrow keys | Move |
+| **Mouse** | Look |
+| **Shift** | Run |
+| **Esc** | Release the pointer |
 
 ## Status
 
-Early / spec-driven — no gameplay code yet. See **[context/goal.md](./context/goal.md)**
-for the full design, mechanics, and open questions. `goal.md` is a living
-document — it will evolve as insights change over time.
+Early. The design lives in **[context/goal.md](./context/goal.md)** — a living
+document that evolves as insights change. Work is broken into feature specs
+under **[context/features/](./context/features/)**.
 
-Work is broken into feature specs under **[context/features/](./context/features/)**.
-First up: **[01 — The Empty Yellow](./context/features/01-empty-yellow.md)**, the
-walkable single-player base Backrooms that every later system builds on.
+Implemented so far:
+
+- **[01 — The Empty Yellow](./context/features/01-empty-yellow.md)** — the
+  walkable, single-player base Backrooms: first-person navigation, an endless
+  procedurally-streamed world of yellow rooms and pillars, flickering
+  fluorescent lighting, and a VHS grain/vignette treatment. This is the base
+  state every later system (the leak, proximity reflection, NPCs) builds on.
+
+Not yet built: the shared-lobby backend, the leak/alteration system, proximity
+reflection, NPCs, and audio.
 
 ## Inspiration
 
 Draws on the Backrooms mythos and Kane Pixels' *The Backrooms (Found Footage)*
 analog-horror series — noclipping, imperfect room mimicry, Still Lifes, entities
-that mimic human voices, Null Zones, and a found-footage aesthetic. See the
-specification for how these map onto the game's mechanics.
+that mimic human voices, Null Zones, and a found-footage aesthetic. See
+[context/goal.md](./context/goal.md) for how these map onto the game's mechanics.
