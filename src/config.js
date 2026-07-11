@@ -21,12 +21,31 @@ export const CONFIG = {
   chunkCells: 6,
   loadRadius: 3, // chunks kept loaded around the player (Chebyshev distance)
 
-  // Blockers. Pillars are now rare; walls are common and sit on cell edges so
-  // they form longer runs and closed-off areas without ever clipping through
-  // each other.
-  pillarChance: 0.02, // per interior cell — rare
-  wallChance: 0.16, // per cell edge — common
-  wallContinuation: 3.0, // multiplier that extends walls into longer runs
+  // ── Map layout: ZONES ──────────────────────────────────────────────────
+  // The world is split into square zones; each zone is assigned one of the
+  // layout PROFILES below (weighted-random, deterministic per seed). Walking
+  // takes you between zones of different character — open spaces, rooms,
+  // corridors, encounter areas. **This is where you shape how the space
+  // generates**: edit weights, retune a profile, or add your own.
+  //
+  // Profile fields (all optional; sensible defaults apply):
+  //   weight            relative chance a zone gets this profile
+  //   wallChance        per cell-edge wall probability (0 = open, ~0.34 = rooms)
+  //   wallContinuation  >1 extends walls into longer runs / enclosures
+  //   pillarChance      per-cell pillar probability (rare)
+  //   corridor:true     the zone is one long walled hallway
+  //   encounter:true    an open clearing with a marker (reserved for encounters)
+  zones: {
+    cells: 13, // zone size in grid cells (~55 m square)
+    spawnProfile: "open", // the fresh corner always uses this
+    profiles: [
+      { name: "open", weight: 3, wallChance: 0.015, wallContinuation: 2.0, pillarChance: 0.05 },
+      { name: "rooms", weight: 3, wallChance: 0.34, wallContinuation: 3.5, pillarChance: 0.01 },
+      { name: "corridors", weight: 2, corridor: true },
+      { name: "encounter", weight: 1, wallChance: 0.0, pillarChance: 0.0, encounter: true },
+    ],
+  },
+  corridorWidth: 2, // interior width (cells) of corridor-zone hallways
 
   // Lights. Sparse: a random 1–3 lights per `lightRegion`×`lightRegion` metres,
   // each a bright fixture that pools light on the floor. `maxActiveLights` caps
@@ -39,14 +58,6 @@ export const CONFIG = {
   lightIntensity: 55, // brightness of each fixture
   lightDecay: 1.5, // falloff; lower = reaches further
   maxActiveLights: 10, // real point-lights lit at once (nearest to player)
-
-  // Corridors. Long walled hallways: at most one per `corridorRegion` metres,
-  // kept well clear of neighbours and of normal walls/pillars.
-  corridorRegion: 500, // metres — one corridor per region
-  corridorChance: 0.65, // chance a given region actually has one
-  corridorLenMin: 8, // cells long
-  corridorLenMax: 16,
-  corridorWidth: 2, // cells wide (interior)
 
   // Player.
   eyeHeight: 1.7,
