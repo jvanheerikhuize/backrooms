@@ -7,9 +7,11 @@ import { createMaterials } from "./materials.js";
 import { World } from "./world.js";
 import { Player } from "./player.js";
 import { createComposer } from "./postfx.js";
+import { Ambience } from "./audio.js";
 
 const canvas = document.getElementById("scene");
 const overlay = document.getElementById("overlay");
+const audioIndicator = document.getElementById("audio-indicator");
 
 // Renderer.
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -51,10 +53,58 @@ window.__dbgPos = () => ({
   chunks: world.chunks.size,
 });
 
+// Ambient audio. Started on the click gesture (autoplay policy), suspended
+// when the player leaves and when the tab is hidden.
+const ambience = new Ambience();
+
+// Debug hook for verification tooling.
+window.__dbgAudio = () => ({
+  state: ambience.ctx ? ambience.ctx.state : "none",
+  muted: ambience.muted,
+  rms: +ambience.level().toFixed(5),
+  lowBandRatio: +ambience.lowBandRatio().toFixed(3),
+});
+
+function updateAudioIndicator(flash) {
+  if (!audioIndicator) return;
+  audioIndicator.textContent = ambience.muted ? "🔇 muted" : "🔊 audio";
+  audioIndicator.classList.toggle("muted", ambience.muted);
+  if (flash) {
+    audioIndicator.classList.add("flash");
+    clearTimeout(updateAudioIndicator._t);
+    updateAudioIndicator._t = setTimeout(
+      () => audioIndicator.classList.remove("flash"),
+      1200,
+    );
+  }
+}
+updateAudioIndicator(false);
+
 // Overlay / pointer-lock wiring.
-overlay.addEventListener("click", () => player.lock());
-player.controls.addEventListener("lock", () => overlay.classList.add("hidden"));
-player.controls.addEventListener("unlock", () => overlay.classList.remove("hidden"));
+overlay.addEventListener("click", () => {
+  ambience.start(); // must run inside the user gesture
+  player.lock();
+});
+player.controls.addEventListener("lock", () => {
+  overlay.classList.add("hidden");
+  ambience.resume();
+});
+player.controls.addEventListener("unlock", () => {
+  overlay.classList.remove("hidden");
+  ambience.suspend();
+});
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) ambience.suspend();
+  else if (player.isLocked) ambience.resume();
+});
+
+// Mute toggle (M).
+window.addEventListener("keydown", (e) => {
+  if (e.code === "KeyM") {
+    ambience.toggleMute();
+    updateAudioIndicator(true);
+  }
+});
 
 // Resize.
 window.addEventListener("resize", () => {
@@ -93,6 +143,9 @@ function animate() {
   materials.lightPanel.emissiveIntensity = f;
   playerLight.intensity = 10 + f * 6;
   hemi.intensity = 0.35 + f * 0.25;
+
+  // Fluorescent hum tracks the same flicker so light and sound buzz together.
+  ambience.setFlicker(f);
 
   fx.setTime(t);
   fx.composer.render();
