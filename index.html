@@ -31,13 +31,38 @@
     <!-- Sprint stamina bar (bottom-centre), shown while draining/recovering -->
     <div id="stamina"><div id="stamina-fill"></div></div>
 
+    <!-- Inventory panel (toggle with F) -->
+    <div id="inventory">
+      <div class="inv-panel">
+        <div class="inv-title">INVENTORY</div>
+        <div class="inv-grid"></div>
+        <div class="inv-hint">F to close</div>
+      </div>
+    </div>
+
+    <!-- Dev menu (toggle with T) — keyboard-only, since the pointer stays locked -->
+    <div id="dev-menu">
+      <div class="dev-panel">
+        <div class="dev-title">DEV MENU</div>
+        <ol class="dev-options">
+          <li><span class="dev-key">1</span> Teleport to a random room</li>
+          <li><span class="dev-key">2</span> Teleport to an arrow</li>
+          <li><span class="dev-key">3</span> Reset the seed</li>
+        </ol>
+        <div class="dev-hint">T to close</div>
+      </div>
+    </div>
+
     <!-- Click-to-start overlay: the opening plays as found-footage behind this -->
     <div id="overlay">
       <div class="overlay-inner">
         <h1>THE EMPTY YELLOW</h1>
         <p class="tag">You have noclipped out of reality.</p>
         <p class="hint">Click to enter</p>
-        <p class="controls">WASD move &nbsp;·&nbsp; Mouse look &nbsp;·&nbsp; C cut-scene &nbsp;·&nbsp; V reduce motion &nbsp;·&nbsp; M mute &nbsp;·&nbsp; Esc release</p>
+        <p class="controls">
+          WASD move &nbsp;·&nbsp; Mouse look &nbsp;·&nbsp; F inventory &nbsp;·&nbsp; T dev menu &nbsp;·&nbsp; C cut-scene &nbsp;·&nbsp; V reduce motion
+          &nbsp;·&nbsp; M mute &nbsp;·&nbsp; Esc release
+        </p>
       </div>
     </div>
 

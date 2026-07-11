@@ -59,10 +59,114 @@ function carpetTexture() {
   return tex;
 }
 
+// A wide, roughly-scrawled pitch-black arrow — like someone marked it on the
+// wall in a hurry with a finger dipped in ink, not a printed sign. Drawn on
+// a transparent canvas so it reads as a marking rather than a solid tile.
+// Points right by default; left-pointing instances just mirror the mesh
+// (see world.js). Wobbly multi-pass strokes + drips give it a hand-drawn,
+// slightly unsettling look rather than a clean vector glyph. The tip is two
+// diagonal scrawled lines meeting at a point, not a filled triangle.
+function arrowTexture() {
+  const w = 512;
+  const h = 256;
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext("2d");
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = "#000000";
+  ctx.strokeStyle = "#000000";
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  const jitter = (n) => (Math.random() - 0.5) * n;
+
+  // A wobbly hand-drawn line: many short jittered segments instead of one
+  // clean stroke, redrawn a few times at slightly different offsets/widths
+  // so it looks scratched rather than plotted. Endpoints wobble much less
+  // than the middle of the stroke, so separate scrawl() calls that are
+  // meant to share a point (e.g. the shaft and the arrowhead barbs) actually
+  // meet there instead of leaving a gap.
+  function scrawl(x1, y1, x2, y2, width, passes = 4) {
+    for (let p = 0; p < passes; p++) {
+      ctx.lineWidth = width * (0.7 + Math.random() * 0.6);
+      ctx.beginPath();
+      const segs = 8;
+      for (let i = 0; i <= segs; i++) {
+        const t = i / segs;
+        const endpoint = i === 0 || i === segs;
+        const x = x1 + (x2 - x1) * t + jitter(endpoint ? 3 : 14);
+        const y = y1 + (y2 - y1) * t + jitter(endpoint ? 2 : 10);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+  }
+
+  const midY = h * 0.5;
+  const tipX = w * 0.9;
+
+  // Shaft runs all the way to the tip — no gap between it and the head.
+  scrawl(w * 0.06, midY, tipX, midY, 22, 4);
+
+  // Tip: two diagonal scrawled lines starting AT the same tip point and
+  // splaying back-and-out, not a filled triangle.
+  const spread = h * 0.24;
+  const barpX = w * 0.68;
+  scrawl(tipX, midY, barpX, midY - spread, 20, 3);
+  scrawl(tipX, midY, barpX, midY + spread, 20, 3);
+
+  // Ink drips trailing down off the shaft and tip — the horror-ish detail.
+  const dripSources = [
+    ...Array.from({ length: 10 }, () => ({
+      x: w * 0.06 + (tipX - w * 0.06) * Math.random(),
+      y: midY,
+    })),
+    ...Array.from({ length: 6 }, () => {
+      const t = Math.random();
+      const upper = Math.random() < 0.5;
+      const sy = upper ? midY - spread : midY + spread;
+      return { x: tipX + (barpX - tipX) * t, y: midY + (sy - midY) * t };
+    }),
+  ];
+  for (const src of dripSources) {
+    const bx = src.x + jitter(10);
+    const by = src.y + jitter(6);
+    const dripLen = 10 + Math.random() * 70;
+    const dripW = 3 + Math.random() * 6;
+    ctx.beginPath();
+    ctx.moveTo(bx - dripW / 2, by);
+    ctx.lineTo(bx + dripW / 2, by);
+    ctx.lineTo(bx + dripW / 3, by + dripLen);
+    ctx.lineTo(bx - dripW / 3, by + dripLen);
+    ctx.closePath();
+    ctx.fill();
+    if (Math.random() < 0.55) {
+      ctx.beginPath();
+      ctx.arc(bx + jitter(4), by + dripLen, dripW * 0.5 + Math.random() * 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Scattered spatter flecks around the mark.
+  for (let i = 0; i < 30; i++) {
+    ctx.globalAlpha = 0.4 + Math.random() * 0.6;
+    ctx.beginPath();
+    ctx.arc(w * 0.4 + jitter(340), midY + jitter(140), Math.random() * 3.5 + 0.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  const tex = new THREE.CanvasTexture(c);
+  return tex;
+}
+
 // Build once and reuse across all chunks.
 export function createMaterials() {
   const wallTex = wallpaperTexture();
   const carpetTex = carpetTexture();
+  const arrowTex = arrowTexture();
 
   const wall = new THREE.MeshStandardMaterial({
     map: wallTex,
@@ -96,11 +200,20 @@ export function createMaterials() {
   const marker = new THREE.MeshStandardMaterial({
     color: 0x0a1a0d,
     emissive: 0x2bff6a,
-    emissiveIntensity: 0.7,
+    emissiveIntensity: 1.4,
     roughness: 0.6,
     transparent: true,
     opacity: 0.85,
   });
 
-  return { wall, carpet, ceiling, lightPanel, marker, _textures: [wallTex, carpetTex] };
+  // Painted-on wall arrow. MeshBasicMaterial so it reads clearly regardless
+  // of local lighting, like a marking rather than a lit object.
+  const arrow = new THREE.MeshBasicMaterial({
+    map: arrowTex,
+    transparent: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+
+  return { wall, carpet, ceiling, lightPanel, marker, arrow, _textures: [wallTex, carpetTex, arrowTex] };
 }
