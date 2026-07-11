@@ -75,13 +75,18 @@ export const CONFIG = {
   // stay open).
   minBlockersPerChunk: 20,
 
-  // Lights. Sparse: a random 1–3 lights per `lightRegion`×`lightRegion` metres,
-  // each a bright fixture that pools light on the floor. `maxActiveLights` caps
-  // how many real point-lights are lit near the player (perf); the rest still
-  // glow as emissive panels.
-  lightRegion: 100, // metres — area over which light count is decided
-  lightsPerRegionMin: 1,
-  lightsPerRegionMax: 3,
+  // Lights. The map is divided into lightCellSize² cells; each has a
+  // lightCellChance chance of holding one fixture, jittered inside a margin
+  // that guarantees two lights (even in adjacent cells, the closest they can
+  // ever land) are never closer than 2*lightCellMargin apart — this is what
+  // stops fixtures from ever spawning inside each other or stacked too close
+  // (same jittered-grid technique specialRooms uses for its min-distance
+  // guarantee). Each a bright fixture that pools light on the floor.
+  // `maxActiveLights` caps how many real point-lights are lit near the
+  // player (perf); the rest still glow as emissive panels.
+  lightCellSize: 35, // metres
+  lightCellChance: 0.25, // ~= the old average of 1-3 lights per 100x100m
+  lightCellMargin: 13, // metres — guarantees >=26m between any two fixtures
   lightRange: 42, // metres a light reaches — bigger = less dark
   lightIntensity: 80, // brightness of each fixture
   lightDecay: 1.3, // falloff; lower = reaches further

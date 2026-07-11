@@ -17,8 +17,10 @@
 //   * CORRIDOR zones are one long walled hallway spanning the zone.
 //   * ENCOUNTER zones are an open clearing with a green floor marker.
 //
-// LIGHTS are independent of zones: a sparse 1–3 fixtures per `lightRegion`²
-// metres, each an emissive panel; the nearest few get a real point-light
+// LIGHTS are independent of zones: at most one fixture per `lightCellSize`²
+// metres (jittered with a margin — see config.js — so two never spawn
+// overlapping or too close), each an emissive panel; the nearest few get a
+// real point-light
 // (managed in main.js) that pools bright light on the floor.
 //
 // Blockers publish axis-aligned bounding boxes (AABBs) for player collision.
@@ -262,17 +264,23 @@ function wallWest(gx, gy, profile) {
 }
 
 // ---------------------------------------------------------------------------
-// Lights — sparse, region-based (1–3 per lightRegion² metres).
+// Lights — one per lightCellSize² cell at most, jittered inside a margin
+// that guarantees minimum spacing between fixtures (see the config.js
+// comment on lightCellMargin for why this can't just be independent random
+// points — that's what let lights spawn overlapping/too close before).
 // ---------------------------------------------------------------------------
 
-function lightsForRegion(rx, ry) {
-  const rng = rngFor(SALT.light, rx, ry);
-  const { lightsPerRegionMin: lo, lightsPerRegionMax: hi, lightRegion: L } = CONFIG;
-  const count = lo + Math.floor(rng() * (hi - lo + 1));
-  const out = [];
-  for (let i = 0; i < count; i++) out.push({ x: (rx + rng()) * L, z: (ry + rng()) * L });
-  if (rx === 0 && ry === 0) out.push({ x: SPAWN_POS.wx, z: SPAWN_POS.wz }); // light the spawn marker
-  return out;
+function lightsForCell(lcx, lcy) {
+  // The spawn cell always gets exactly its one dedicated light and nothing
+  // else, so it can't roll a second fixture too close to it.
+  if (lcx === 0 && lcy === 0) return [{ x: SPAWN_POS.wx, z: SPAWN_POS.wz }];
+  const rng = rngFor(SALT.light, lcx, lcy);
+  if (rng() >= CONFIG.lightCellChance) return [];
+  const { lightCellSize: L, lightCellMargin: M } = CONFIG;
+  const usable = Math.max(L - 2 * M, 0);
+  const x = lcx * L + M + rng() * usable;
+  const z = lcy * L + M + rng() * usable;
+  return [{ x, z }];
 }
 
 export class World {
@@ -367,7 +375,7 @@ export class World {
   }
 
   lightsForChunk(cx, cy) {
-    const L = CONFIG.lightRegion;
+    const L = CONFIG.lightCellSize;
     const minX = cx * span - span / 2;
     const maxX = cx * span + span / 2;
     const minZ = cy * span - span / 2;
@@ -375,7 +383,7 @@ export class World {
     const out = [];
     for (let ry = Math.floor(minZ / L); ry <= Math.floor(maxZ / L); ry++) {
       for (let rx = Math.floor(minX / L); rx <= Math.floor(maxX / L); rx++) {
-        for (const p of lightsForRegion(rx, ry)) {
+        for (const p of lightsForCell(rx, ry)) {
           const co = this.chunkOf(p.x, p.z);
           if (co.cx === cx && co.cy === cy) out.push(p);
         }
@@ -540,11 +548,32 @@ export class World {
       }
     }
 
-    // Every special room gets its own guaranteed ceiling light (in addition
-    // to whatever the ordinary sparse light-region roll gives it) — without
-    // this a room can land far from any regional light and read as pitch
-    // black despite being fully furnished.
-    const lights = this.lightsForChunk(cx, cy).concat(rooms.map((r) => ({ x: r.x, z: r.z })));
+    // Every special room gets its own guaranteed ceiling light — without
+    // this a room can land far from any grid light and read as pitch black
+    // despite being fully furnished. The grid-light cell system (see
+    // lightsForCell) already guarantees spacing *within itself*, but a room
+    // light sits on a completely independent coordinate system (region-based,
+    // not cell-based) — so drop any grid light that would land too close to
+    // one, rather than let the two systems spawn on top of each other.
+    //
+    // The room whose light might conflict isn't necessarily one THIS chunk
+    // owns (`rooms`, above) — it can be in a neighbouring chunk, closer to
+    // this chunk's grid lights than to its own. So this widens the search
+    // the same way exclusionRooms does for wall exclusion: query rooms
+    // within the suppression radius of this chunk's bounds, not just rooms
+    // centred inside them.
+    const lightGap = CONFIG.lightCellMargin * 2;
+    const nearbyRoomLights = roomsAffecting(
+      originX - span / 2 - lightGap,
+      originX + span / 2 + lightGap,
+      originZ - span / 2 - lightGap,
+      originZ + span / 2 + lightGap
+    ).map((r) => ({ x: r.x, z: r.z }));
+    const minLightGapSq = lightGap * lightGap;
+    const gridLights = this.lightsForChunk(cx, cy).filter(
+      (p) => !nearbyRoomLights.some((rl) => (p.x - rl.x) ** 2 + (p.z - rl.z) ** 2 < minLightGapSq)
+    );
+    const lights = gridLights.concat(rooms.map((r) => ({ x: r.x, z: r.z })));
     const panelMatrices = lights.map((p) => {
       m.makeRotationX(Math.PI / 2);
       m.setPosition(p.x, wallHeight - 0.02, p.z);
