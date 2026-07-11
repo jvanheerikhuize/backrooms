@@ -52,6 +52,7 @@ npm run preview    # serve the production build locally
 | **W A S D** / arrow keys | Move |
 | **Mouse** | Look |
 | **Shift** | Run |
+| **M** | Mute / unmute audio |
 | **Esc** | Release the pointer |
 
 ## Status
@@ -68,9 +69,12 @@ Implemented so far:
   procedurally-streamed world of yellow rooms and pillars, flickering
   fluorescent lighting, and a VHS grain/vignette treatment. This is the base
   state every later system (the leak, proximity reflection, NPCs) builds on.
+- **[03 — Audio & Ambience](./context/features/03-audio-ambience.md)** — a
+  procedural brown-noise room-tone bed and a fluorescent hum coupled to the
+  light flicker, with a mute toggle (M). No audio assets — all Web Audio.
 
 Not yet built: the shared-lobby backend, the leak/alteration system, proximity
-reflection, NPCs, and audio.
+reflection, and NPCs.
 
 ## Inspiration
 

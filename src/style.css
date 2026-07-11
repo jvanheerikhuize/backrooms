@@ -27,6 +27,30 @@ body {
   display: block;
 }
 
+/* Ambient-audio indicator, bottom-left corner */
+#audio-indicator {
+  position: fixed;
+  left: 14px;
+  bottom: 12px;
+  z-index: 5;
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  color: var(--yellow-dim);
+  opacity: 0.35;
+  user-select: none;
+  pointer-events: none;
+  transition: opacity 0.4s ease, color 0.4s ease;
+}
+
+#audio-indicator.muted {
+  color: #7a5a2a;
+}
+
+#audio-indicator.flash {
+  opacity: 0.95;
+  color: var(--yellow);
+}
+
 /* Click-to-start / paused overlay */
 #overlay {
   position: fixed;

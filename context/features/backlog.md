@@ -9,7 +9,7 @@ are noted per row.
 | --- | --- | --- | --- | --- |
 | [01](./01-empty-yellow.md) | The Empty Yellow — walkable base | **Implemented** | §4 base look, §5.1 | — |
 | [02](./02-player-influence-leak.md) | Player Influence & The Leak | Designed | §5.3, §5.6, §6.2 | 01 |
-| [03](./03-audio-ambience.md) | Audio & Ambience (brown-noise bed) | Proposed | §4 ambient audio, §6.5 | 01 |
+| [03](./03-audio-ambience.md) | Audio & Ambience (brown-noise bed) | **Implemented** | §4 ambient audio, §6.5 | 01 |
 | [04](./04-found-footage-camera.md) | Found-Footage Camera Layer | Proposed | §4 VHS, §6.9 | 01 |
 | [05](./05-fluorescent-flicker.md) | Fluorescent Lighting Overhaul | Proposed | §4 fluorescent buzz | 01 (03 for audio sync) |
 | [06](./06-liminal-detail-pass.md) | Liminal Environmental Detail Pass | Proposed | §4 damp/liminal | 01 |
