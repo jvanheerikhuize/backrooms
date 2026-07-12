@@ -11,13 +11,14 @@ import { Ambience } from "./audio.js";
 import { Cutscene } from "./cutscene.js";
 import { preloadObjects } from "./objects.js";
 import { preloadSvgProps } from "./svgprops.js";
+import { preloadSkins } from "./textures.js";
 import { buildStage2Room, STAGE2_POS } from "./stage2.js";
 import { buildPropRoom, PROPROOM_POS } from "./proproom.js";
 
 // Kick the STL model fetches off immediately so they load in parallel with
 // the synchronous setup below; awaited just before the first world.update()
 // call, which is the first point anything actually needs them ready.
-const objectsReady = Promise.all([preloadObjects(), preloadSvgProps()]);
+const objectsReady = Promise.all([preloadObjects(), preloadSvgProps(), preloadSkins()]);
 
 const canvas = document.getElementById("scene");
 const overlay = document.getElementById("overlay");

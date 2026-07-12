@@ -3,6 +3,17 @@
 Append-only, terse log of decisions that aren't obvious from the code. Newest
 first. One entry per decision: date · what · why.
 
+- **2026-07-12 · Image-texture SKINS (surface re-skinning).** Added
+  `src/textures.js`: a registry that ingests seamless image textures from
+  `public/textures/` and turns each into an alternate wall/floor/ceiling
+  material set ("skin"). ~40% of special rooms adopt a random skin — walls use
+  the skin material, and an overlaid floor+ceiling plane re-skins those too — so
+  the room reads as a "leaked" reinterpretation of the base yellow (goal.md leak
+  idea; materials.js always flagged the base textures as swappable). Uses an
+  independent RNG salt so re-skinning never shifts prop layouts. Seeded with 4
+  CC0 Poly Haven textures (concrete, blue tiles, blue/beige plaster). Parallels
+  the model (objects.js) and SVG (svgprops.js) registries — third "drop a file +
+  register it" content pipeline.
 - **2026-07-12 · Rooms are asset-only; added a dev Prop Room.** Stripped every
   procedurally-built prop and the box/cylinder fallbacks from `rooms.js` — themes
   now place ONLY registry models (glTF/STL) + SVG signs; the only primitives left
