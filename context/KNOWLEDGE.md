@@ -1,6 +1,6 @@
 # Knowledge graph
 
-> Generated from `knowledge.json` by `npm run kg -- render` — do not hand-edit. 44 nodes · 61 edges · updated 2026-07-12.
+> Generated from `knowledge.json` by `npm run kg -- render` — do not hand-edit. 45 nodes · 65 edges · updated 2026-07-12.
 
 Lightweight knowledge graph for the Backrooms game. Nodes are the things worth remembering (subsystems, concepts, decisions, conventions, mechanics, people, sources); edges are typed relations. Query it with `npm run kg -- <cmd>` (see context/kg.mjs) instead of reading the full prose docs. The graph indexes goal.md (design) and decisions.md (why) — drill into those via a node's `ref`.
 
@@ -62,7 +62,7 @@ authored_by → **Jerry**
 ### Entry / orchestrator `sub-main` — src/main.js
 Scene, render loop, dev menu, teleports; preloads the asset registries before world generation.
 
-uses → **Places** · uses → **Entity layer** · uses → **World streaming** · uses → **Player controller** · uses → **Cut-scene layer** · uses → **Ambience** · uses → **Prop Room (dev)** · uses → **Stage 2 (dev)**
+uses → **Places** · uses → **Entity layer** · uses → **NPC presence** · uses → **World streaming** · uses → **Player controller** · uses → **Cut-scene layer** · uses → **Ambience** · uses → **Prop Room (dev)** · uses → **Stage 2 (dev)**
 
 ### World streaming `sub-world` — src/world.js
 Infinite chunk-streamed maze; layout zones; wall arrows; sparse lights. Deterministic per seed.
@@ -130,7 +130,12 @@ Where-you-are abstraction (world / Stage 2 / Prop Room): scene, spawn, collision
 uses → **World streaming**
 
 ### Entity layer `sub-entity` — src/entity.js
-Tiny entity list + per-frame update + a nearest-presence proximity signal. The seam NPCs / items / an audio entity plug into (no entities yet). Feeds the future leak + dread systems.
+Tiny entity list + per-frame update + a nearest-presence proximity signal. The seam NPCs / items / an audio entity plug into. Feeds the future leak + dread systems.
+
+### NPC presence `sub-npc` — src/npc.js
+First wandering presence — a dark Still-Life figure leashed near the player, avoids walls, registers on the proximity signal, carries a signature for the future presence-driven leak.
+
+uses → **Entity layer** · realizes → **Still Lifes** · realizes → **Shared lobby**
 
 
 ## concepts

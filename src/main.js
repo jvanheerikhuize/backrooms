@@ -16,6 +16,7 @@ import { buildStage2Room, STAGE2_POS } from "./stage2.js";
 import { buildPropRoom, PROPROOM_POS } from "./proproom.js";
 import { WorldPlace, RoomPlace } from "./place.js";
 import { EntitySet } from "./entity.js";
+import { Npc } from "./npc.js";
 
 // Kick the STL model fetches off immediately so they load in parallel with
 // the synchronous setup below; awaited just before the first world.update()
@@ -150,10 +151,19 @@ let activePlace = worldPlace;
 // and the source of the `nearestPresence` proximity signal.
 const entities = new EntitySet();
 
-// Debug hook: entity count + the current nearest-presence signal (null today).
+// The first NPC — a wandering presence that lurks near the player in the world.
+// Spawned a few metres off the fresh-corner spawn so it's nearby on arrival.
+const npc = new Npc(worldPlace, SPAWN_POS.wx + 6, SPAWN_POS.wz + 6);
+scene.add(npc.object3D);
+entities.add(npc);
+
+// Debug hook: entity count + the current nearest-presence signal.
 window.__dbgEntities = () => {
   const near = entities.nearestPresence(camera.position.x, camera.position.z, activePlace);
-  return { count: entities.list.length, nearest: near ? { dist: +near.dist.toFixed(2) } : null };
+  return {
+    count: entities.list.length,
+    nearest: near ? { dist: +near.dist.toFixed(2), x: +near.entity.object3D.position.x.toFixed(1), z: +near.entity.object3D.position.z.toFixed(1) } : null,
+  };
 };
 
 // Switch to a place: render its scene, apply its vignette + audio bed, spawn the
