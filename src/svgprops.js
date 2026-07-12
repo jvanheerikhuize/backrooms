@@ -36,6 +36,9 @@ export const SVG_REGISTRY = [
   { id: "hazard", file: "/models/svg/hazard.svg", label: "hazard warning", widthMeters: 0.6 },
   { id: "radiation", file: "/models/svg/radiation.svg", label: "radiation trefoil", widthMeters: 0.6 },
   { id: "no-entry", file: "/models/svg/no-entry.svg", label: "no-entry sign", widthMeters: 0.6 },
+  { id: "lightning", file: "/models/svg/lightning.svg", label: "electrical hazard", widthMeters: 0.5 },
+  { id: "first-aid", file: "/models/svg/first-aid.svg", label: "first-aid sign", widthMeters: 0.6 },
+  { id: "skull", file: "/models/svg/skull.svg", label: "danger skull", widthMeters: 0.55 },
 ];
 
 const loader = new SVGLoader();
@@ -124,4 +127,10 @@ export function randomSvgProp(rng) {
   const ids = SVG_REGISTRY.map((e) => e.id).filter((id) => cache.has(id));
   if (ids.length === 0) return null;
   return cache.get(ids[Math.floor(rng() * ids.length)]);
+}
+
+// A specific parsed 2D prop's cached template by id, or undefined if it hasn't
+// loaded — used by the prop room to lay out one of every sign.
+export function getSvgProp(id) {
+  return cache.get(id);
 }

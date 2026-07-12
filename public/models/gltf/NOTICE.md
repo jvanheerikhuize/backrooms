@@ -31,6 +31,11 @@ resolution, loaded and normalised by `src/objects.js` (see `preloadObjects`).
 | `Sofa_01` (sofa)               | Sofa 01          | Kirill Sannikov |
 | `boombox` (boombox)            | Boombox          | Thomas Paul Mouilleron |
 | `ammo_box` (ammo-box)          | Ammo Box         | DanKit          |
+| `Television_01` (television)   | Television 01    | Gabriel Radić   |
+| `korean_fire_extinguisher_01` (fire-extinguisher) | Korean Fire Extinguisher 01 | UM JOORIN |
+| `metal_trash_can` (trash-can)  | Metal Trash Can  | GurJas Studios  |
+| `anthurium_botany_01` (potted-plant) | Anthurium Botany 01 | Rob Tuytel, Rico Cilliers |
+| `can_rusted` (rusted-can)      | Can Rusted       | Rahul Chaudhary |
 
 To add more: download a CC0 glTF (e.g. from the Poly Haven API,
 `https://api.polyhaven.com/files/<AssetName>`, the `gltf.1k.gltf` entry plus its

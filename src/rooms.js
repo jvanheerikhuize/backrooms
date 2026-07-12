@@ -218,21 +218,6 @@ function buildWalls(group, colliders, wallMat, room) {
   }
 }
 
-// Simple, muted, worn-looking materials — built once and reused across all
-// rooms. Deliberately desaturated so the decorations read as leftover/old,
-// not a bright, freshly-thrown party.
-const woodMat = new THREE.MeshStandardMaterial({ color: 0x5a4028, roughness: 0.9 });
-const crateMat = new THREE.MeshStandardMaterial({ color: 0x4a3a24, roughness: 0.95 });
-const metalMat = new THREE.MeshStandardMaterial({ color: 0x555a5c, roughness: 0.6, metalness: 0.4 });
-const fabricMat = new THREE.MeshStandardMaterial({ color: 0x3f4a3a, roughness: 0.95 });
-const lanternMat = new THREE.MeshStandardMaterial({ color: 0xcfa24a, emissive: 0x8a5f1a, emissiveIntensity: 0.6, roughness: 0.5 });
-const festiveMats = [0x7d4646, 0x46607d, 0x7d7046, 0x466b4f].map(
-  (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.8 })
-);
-const toyMats = [0x8f4a44, 0x44688f, 0x8a7a3f, 0x4a8a58].map(
-  (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.75 })
-);
-
 // Add a mesh AND a matching floor collider (AABB, padded by player radius,
 // same convention as the rest of the generator) in one go.
 function addBlocker(group, colliders, geo, mat, x, y, z, halfX, halfZ, rotY = 0) {
@@ -243,17 +228,6 @@ function addBlocker(group, colliders, geo, mat, x, y, z, halfX, halfZ, rotY = 0)
   group.add(mesh);
   const px = CONFIG.playerRadius;
   colliders.push({ minX: x - halfX - px, maxX: x + halfX + px, minZ: z - halfZ - px, maxZ: z + halfZ + px });
-  return mesh;
-}
-
-// Cosmetic-only mesh — no collider. Used for small tabletop trinkets that
-// already sit inside the table's own footprint.
-function addDecor(group, geo, mat, x, y, z, rotY = 0) {
-  geo.userData.disposable = true;
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.position.set(x, y, z);
-  if (rotY) mesh.rotation.y = rotY;
-  group.add(mesh);
   return mesh;
 }
 
@@ -309,14 +283,11 @@ function randomSpot(rng, room, clearance, colliders, maxSpread = 4.5) {
 // arbitrary rotation, this only ever turns in 90° steps, keeping the
 // footprint collider (which doesn't know about rotation) accurate.
 function placeTableMesh(group, colliders, tx, tz, tableW, tableD, tableH, rotated, tableObj) {
-  if (tableObj) {
-    const mesh = tableObj.object3D.clone();
-    mesh.position.set(tx, 0, tz);
-    mesh.rotation.y = rotated ? Math.PI / 2 : 0;
-    group.add(mesh);
-  } else {
-    addDecor(group, new THREE.BoxGeometry(tableW, 0.07, tableD), woodMat, tx, tableH, tz);
-  }
+  if (!tableObj) return; // asset-only: no procedural table stand-in
+  const mesh = tableObj.object3D.clone();
+  mesh.position.set(tx, 0, tz);
+  mesh.rotation.y = rotated ? Math.PI / 2 : 0;
+  group.add(mesh);
   const px = CONFIG.playerRadius;
   colliders.push({ minX: tx - tableW / 2 - px, maxX: tx + tableW / 2 + px, minZ: tz - tableD / 2 - px, maxZ: tz + tableD / 2 + px });
 }
@@ -366,16 +337,12 @@ function addChair(group, colliders, rng, room, anchorX, anchorZ, radius) {
       break;
     }
   }
-  if (!spot) return;
+  if (!spot || !chairObj) return; // asset-only: no procedural chair stand-in
   const rotY = rng() * Math.PI * 2;
-  if (chairObj) {
-    const mesh = chairObj.object3D.clone();
-    mesh.position.set(spot.x, 0, spot.z);
-    mesh.rotation.y = rotY;
-    group.add(mesh);
-  } else {
-    addDecor(group, new THREE.BoxGeometry(half * 2, 0.85, half * 2), woodMat, spot.x, 0.42, spot.z, rotY);
-  }
+  const mesh = chairObj.object3D.clone();
+  mesh.position.set(spot.x, 0, spot.z);
+  mesh.rotation.y = rotY;
+  group.add(mesh);
   const px = CONFIG.playerRadius;
   colliders.push({ minX: spot.x - half - px, maxX: spot.x + half + px, minZ: spot.z - half - px, maxZ: spot.z + half + px });
 }
@@ -428,27 +395,7 @@ function addFestivalTheme(group, colliders, rng, room) {
     addChair(group, colliders, rng, room, table.tx, table.tz, Math.max(table.tableW, table.tableD) / 2 + 0.5);
   }
 
-  const onTableCount = 3 + Math.floor(rng() * 3); // 3-5 tabletop trinkets
-  for (let i = 0; i < onTableCount; i++) {
-    const mat = festiveMats[Math.floor(rng() * festiveMats.length)];
-    const size = 0.11 + rng() * 0.12;
-    const px = table.tx + (rng() * 2 - 1) * Math.max(table.tableW / 2 - size, 0.05);
-    const pz = table.tz + (rng() * 2 - 1) * Math.max(table.tableD / 2 - size, 0.05);
-    const geo = rng() < 0.5 ? new THREE.BoxGeometry(size, size, size) : new THREE.CylinderGeometry(size / 2, size / 2, size, 8);
-    addDecor(group, geo, mat, px, table.tableH + size / 2 + 0.04, pz, rng() * Math.PI * 2);
-  }
-
   if (rng() < 0.3) addResearchProp(group, colliders, rng, room);
-
-  const droppedCount = 1 + Math.floor(rng() * 3); // 1-3 items dropped on the floor
-  for (let i = 0; i < droppedCount; i++) {
-    const spot = randomSpot(rng, room, 0.6, colliders);
-    if (!spot) continue; // room's too crowded for this one — skip it, don't overlap
-    const mat = festiveMats[Math.floor(rng() * festiveMats.length)];
-    const size = 0.13 + rng() * 0.1;
-    const geo = rng() < 0.5 ? new THREE.BoxGeometry(size, size, size) : new THREE.CylinderGeometry(size / 2, size / 2, size, 8);
-    addBlocker(group, colliders, geo, mat, spot.x, size / 2, spot.z, size / 2, size / 2, rng() * Math.PI * 2);
-  }
 }
 
 // ── Toys: a scatter of toys, sometimes anchored by a toy chest. ───────────
@@ -458,89 +405,47 @@ function addToysTheme(group, colliders, rng, room) {
     // the storage theme's crates so it reads as a chest, not just more junk.
     const chestObj = getObject("wooden-crate");
     const scale = 1.1 + rng() * 0.5;
-    const clearance = chestObj ? Math.max(chestObj.halfX, chestObj.halfZ) * scale + 0.4 : 0.65;
-    const spot = randomSpot(rng, room, clearance, colliders);
-    if (spot) {
-      if (chestObj) {
-        placeModel(group, colliders, "wooden-crate", spot.x, spot.z, rng() * Math.PI * 2, scale);
-      } else {
-        const w = 0.7 + rng() * 0.3;
-        const d = 0.5 + rng() * 0.2;
-        addBlocker(group, colliders, new THREE.BoxGeometry(w, 0.45, d), crateMat, spot.x, 0.225, spot.z, w / 2, d / 2, rng() * Math.PI * 2);
-      }
+    if (chestObj) {
+      const clearance = Math.max(chestObj.halfX, chestObj.halfZ) * scale + 0.4;
+      const spot = randomSpot(rng, room, clearance, colliders);
+      if (spot) placeModel(group, colliders, "wooden-crate", spot.x, spot.z, rng() * Math.PI * 2, scale);
     }
   }
 
   if (rng() < 0.3) addResearchProp(group, colliders, rng, room);
 
-  const count = 4 + Math.floor(rng() * 4); // 4-7 scattered toys
+  const count = 4 + Math.floor(rng() * 4); // 4-7 scattered toy models (duck / baseball)
   for (let i = 0; i < count; i++) {
-    const roll = rng();
-    // A third of the time, a real toy model (duck/baseball) instead of an
-    // abstract block/ball/puck — keeps some variety without losing the
-    // "pile of assorted toys" read the plain shapes give.
-    if (roll < 0.33) {
-      const id = rng() < 0.5 ? "toy-duck" : "toy-baseball";
-      const obj = getObject(id);
-      if (obj) {
-        const clearance = Math.max(obj.halfX, obj.halfZ) + 0.3;
-        const spot = randomSpot(rng, room, clearance, colliders);
-        if (spot) placeModel(group, colliders, id, spot.x, spot.z, rng() * Math.PI * 2);
-        continue;
-      }
-    }
-    const spot = randomSpot(rng, room, 0.4, colliders);
-    if (!spot) continue;
-    const mat = toyMats[Math.floor(rng() * toyMats.length)];
-    const size = 0.16 + rng() * 0.18;
-    const shapeRoll = rng();
-    const geo =
-      shapeRoll < 0.4
-        ? new THREE.BoxGeometry(size, size, size)
-        : shapeRoll < 0.75
-          ? new THREE.SphereGeometry(size / 2, 10, 8)
-          : new THREE.CylinderGeometry(size / 2, size / 2, size * 0.8, 10);
-    addBlocker(group, colliders, geo, mat, spot.x, size / 2, spot.z, size / 2, size / 2, rng() * Math.PI * 2);
+    const id = rng() < 0.5 ? "toy-duck" : "toy-baseball";
+    const obj = getObject(id);
+    if (!obj) continue;
+    const clearance = Math.max(obj.halfX, obj.halfZ) + 0.3;
+    const spot = randomSpot(rng, room, clearance, colliders);
+    if (spot) placeModel(group, colliders, id, spot.x, spot.z, rng() * Math.PI * 2);
   }
 }
 
 // ── Camp: a bedroll, a backpack, a lantern, and scattered supplies. ───────
 function addCampTheme(group, colliders, rng, room) {
-  const bw = 1.7 + rng() * 0.4;
-  const bd = 0.6 + rng() * 0.15;
-  const bedSpot = randomSpot(rng, room, Math.max(bw, bd) / 2 + 0.5, colliders);
-  if (bedSpot) addBlocker(group, colliders, new THREE.BoxGeometry(bw, 0.08, bd), fabricMat, bedSpot.x, 0.04, bedSpot.z, bw / 2, bd / 2, rng() * Math.PI * 2);
-
-  const packSpot = randomSpot(rng, room, 0.5, colliders);
-  if (packSpot) addBlocker(group, colliders, new THREE.BoxGeometry(0.34, 0.4, 0.22), fabricMat, packSpot.x, 0.2, packSpot.z, 0.17, 0.11, rng() * Math.PI * 2);
-
   const lanternObj = getObject("lantern");
-  const lanternClearance = lanternObj ? Math.max(lanternObj.halfX, lanternObj.halfZ) + 0.4 : 0.4;
-  const lanternSpot = randomSpot(rng, room, lanternClearance, colliders);
-  if (lanternSpot) {
-    if (lanternObj) placeModel(group, colliders, "lantern", lanternSpot.x, lanternSpot.z, rng() * Math.PI * 2);
-    else addBlocker(group, colliders, new THREE.CylinderGeometry(0.1, 0.12, 0.22, 10), lanternMat, lanternSpot.x, 0.11, lanternSpot.z, 0.12, 0.12);
+  if (lanternObj) {
+    const lanternClearance = Math.max(lanternObj.halfX, lanternObj.halfZ) + 0.4;
+    const lanternSpot = randomSpot(rng, room, lanternClearance, colliders);
+    if (lanternSpot) placeModel(group, colliders, "lantern", lanternSpot.x, lanternSpot.z, rng() * Math.PI * 2);
   }
 
   if (rng() < 0.3) addResearchProp(group, colliders, rng, room);
 
-  const supplyCount = 1 + Math.floor(rng() * 3); // 1-3 cans/boxes
+  const supplyCount = 1 + Math.floor(rng() * 3); // 1-3 supply models (oil can / crate / box)
   for (let i = 0; i < supplyCount; i++) {
     const roll = rng();
     const id = roll < 0.4 ? "oil-can" : roll < 0.7 ? "wooden-crate" : "cardboard-box";
     const obj = getObject(id);
+    if (!obj) continue;
     const scale = 0.7 + rng() * 0.4;
-    const clearance = obj ? Math.max(obj.halfX, obj.halfZ) * scale + 0.3 : 0.5;
+    const clearance = Math.max(obj.halfX, obj.halfZ) * scale + 0.3;
     const spot = randomSpot(rng, room, clearance, colliders);
-    if (!spot) continue;
-    if (obj) {
-      placeModel(group, colliders, id, spot.x, spot.z, rng() * Math.PI * 2, scale);
-    } else {
-      const mat = rng() < 0.5 ? metalMat : crateMat;
-      const size = 0.14 + rng() * 0.12;
-      const geo = rng() < 0.5 ? new THREE.CylinderGeometry(size / 2, size / 2, size, 10) : new THREE.BoxGeometry(size, size, size);
-      addBlocker(group, colliders, geo, mat, spot.x, size / 2, spot.z, size / 2, size / 2, rng() * Math.PI * 2);
-    }
+    if (spot) placeModel(group, colliders, id, spot.x, spot.z, rng() * Math.PI * 2, scale);
   }
 }
 
@@ -554,46 +459,35 @@ function addStorageTheme(group, colliders, rng, room) {
     const id = rng() < 0.5 ? "wooden-crate" : "cardboard-box";
     const obj = getObject(id);
     const scale = 0.8 + rng() * 0.6; // size variety, standing in for the old randomized crate size
-    const clearance = obj ? Math.max(obj.halfX, obj.halfZ) * scale + 0.4 : 0.65;
+    if (!obj) continue;
+    const clearance = Math.max(obj.halfX, obj.halfZ) * scale + 0.4;
     const spot = randomSpot(rng, room, clearance, colliders);
     if (!spot) continue;
-    if (obj) {
-      const base = placeModel(group, colliders, id, spot.x, spot.z, rng() * Math.PI * 2, scale);
-      if (rng() < 0.35) {
-        // Stack a smaller crate/box on top — cosmetic only (no separate
-        // collider, the base already blocks this spot).
-        const topId = rng() < 0.5 ? "wooden-crate" : "cardboard-box";
-        const topObj = getObject(topId);
-        if (topObj) {
-          const topScale = scale * (0.55 + rng() * 0.2);
-          const mesh = topObj.object3D.clone();
-          mesh.scale.multiplyScalar(topScale);
-          mesh.position.set(spot.x, base.height, spot.z);
-          mesh.rotation.y = rng() * Math.PI * 2;
-          group.add(mesh);
-        }
+    const base = placeModel(group, colliders, id, spot.x, spot.z, rng() * Math.PI * 2, scale);
+    if (rng() < 0.35) {
+      // Stack a smaller crate/box on top — cosmetic only (no separate
+      // collider, the base already blocks this spot).
+      const topId = rng() < 0.5 ? "wooden-crate" : "cardboard-box";
+      const topObj = getObject(topId);
+      if (topObj) {
+        const topScale = scale * (0.55 + rng() * 0.2);
+        const mesh = topObj.object3D.clone();
+        mesh.scale.multiplyScalar(topScale);
+        mesh.position.set(spot.x, base.height, spot.z);
+        mesh.rotation.y = rng() * Math.PI * 2;
+        group.add(mesh);
       }
-    } else {
-      const size = 0.5 + rng() * 0.35;
-      const h = size * (0.8 + rng() * 0.3);
-      addBlocker(group, colliders, new THREE.BoxGeometry(size, h, size), crateMat, spot.x, h / 2, spot.z, size / 2, size / 2, rng() * Math.PI * 2);
     }
   }
 
   const barrelCount = 1 + Math.floor(rng() * 3); // 1-3 barrels
   for (let i = 0; i < barrelCount; i++) {
     const obj = getObject("barrel");
+    if (!obj) continue;
     const scale = 0.9 + rng() * 0.3;
-    const clearance = obj ? Math.max(obj.halfX, obj.halfZ) * scale + 0.4 : 0.65;
+    const clearance = Math.max(obj.halfX, obj.halfZ) * scale + 0.4;
     const spot = randomSpot(rng, room, clearance, colliders);
-    if (!spot) continue;
-    if (obj) {
-      placeModel(group, colliders, "barrel", spot.x, spot.z, rng() * Math.PI * 2, scale);
-    } else {
-      const r = 0.24 + rng() * 0.08;
-      const h = 0.75 + rng() * 0.2;
-      addBlocker(group, colliders, new THREE.CylinderGeometry(r, r, h, 12), metalMat, spot.x, h / 2, spot.z, r, r);
-    }
+    if (spot) placeModel(group, colliders, "barrel", spot.x, spot.z, rng() * Math.PI * 2, scale);
   }
 }
 
@@ -621,58 +515,6 @@ function addFloorShelf(group, colliders, rng, room) {
   colliders.push({ minX: x - halfX - px, maxX: x + halfX + px, minZ: z - halfZ - px, maxZ: z + halfZ + px });
 }
 
-// ── Party: a table at the room's centre with cake, confetti on the floor,
-// and streamers sagging across the ceiling. ───────────────────────────────
-const partyMats = [0xb84a4a, 0x4a7fb8, 0xd4b23a, 0x4aa662, 0xb84a94].map(
-  (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.7, side: THREE.DoubleSide })
-);
-const plateMat = new THREE.MeshStandardMaterial({ color: 0xe8e2d0, roughness: 0.5 });
-const cakeMat = new THREE.MeshStandardMaterial({ color: 0xe0b98a, roughness: 0.6 });
-const frostingMat = new THREE.MeshStandardMaterial({ color: 0xd66fa0, roughness: 0.5 });
-const cherryMat = new THREE.MeshStandardMaterial({ color: 0x9c1f2e, roughness: 0.35 });
-
-// A paper plate sitting on the table, with one cake slice on it. The slice
-// is a 3-sided prism (a triangular cross-section) rather than a box or
-// cylinder — reads as a wedge shape — topped with a frosting layer and a
-// cherry.
-function addCakeOnPlate(group, rng, tableX, tableZ, tableTopY) {
-  const plateR = 0.17;
-  addDecor(group, new THREE.CylinderGeometry(plateR, plateR, 0.012, 16), plateMat, tableX, tableTopY + 0.006, tableZ);
-
-  const sliceR = 0.1;
-  const sliceH = 0.085;
-  const rotY = rng() * Math.PI * 2;
-  addDecor(group, new THREE.CylinderGeometry(sliceR, sliceR, sliceH, 3), cakeMat, tableX, tableTopY + 0.012 + sliceH / 2, tableZ, rotY);
-  const frostingY = tableTopY + 0.012 + sliceH + 0.007;
-  addDecor(group, new THREE.CylinderGeometry(sliceR * 0.85, sliceR * 0.85, 0.014, 3), frostingMat, tableX, frostingY, tableZ, rotY);
-
-  const cherryR = 0.02;
-  addDecor(group, new THREE.SphereGeometry(cherryR, 8, 6), cherryMat, tableX, frostingY + 0.007 + cherryR, tableZ);
-}
-
-// Small flat confetti pieces scattered on the floor — cosmetic only, like
-// the tabletop trinkets elsewhere; real confetti wouldn't meaningfully
-// block walking, and colliding with every piece would be absurd.
-function addConfetti(group, rng, room) {
-  const count = 25 + Math.floor(rng() * 15); // 25-39 pieces
-  const halfW = Math.max(room.w / 2 - 0.4, 0.5);
-  const halfD = Math.max(room.d / 2 - 0.4, 0.5);
-  for (let i = 0; i < count; i++) {
-    const mat = partyMats[Math.floor(rng() * partyMats.length)];
-    const size = 0.03 + rng() * 0.025;
-    const x = room.x + (rng() * 2 - 1) * halfW;
-    const z = room.z + (rng() * 2 - 1) * halfD;
-    const square = rng() < 0.5;
-    const geo = square ? new THREE.BoxGeometry(size, 0.004, size) : new THREE.CircleGeometry(size / 2, 6);
-    const rotX = square ? 0 : -Math.PI / 2; // circles are drawn facing +Z by default — lay them flat
-    const mesh = new THREE.Mesh(geo, mat);
-    geo.userData.disposable = true;
-    mesh.position.set(x, 0.003, z);
-    mesh.rotation.set(rotX, rng() * Math.PI * 2, 0);
-    group.add(mesh);
-  }
-}
-
 // Streamers across the ceiling were tried here and pulled back out — a
 // procedurally-sagging strip built from boxes never quite reads right.
 // Flynn's adding a real streamer model to objects.js later; re-add a call
@@ -690,8 +532,11 @@ function addPartyTheme(group, colliders, rng, room) {
   const { x: tx, z: tz } = keepClearOfDoor(room, room.x, room.z, Math.max(tableW, tableD) / 2 + 0.1);
   placeTableMesh(group, colliders, tx, tz, tableW, tableD, tableH, rotated, tableObj);
 
-  addCakeOnPlate(group, rng, tx, tz, tableH);
-  addConfetti(group, rng, room);
+  // Party seating around the table (school-chair model).
+  const chairCount = 2 + Math.floor(rng() * 3); // 2-4 chairs
+  for (let i = 0; i < chairCount; i++) {
+    addChair(group, colliders, rng, room, tx, tz, Math.max(tableW, tableD) / 2 + 0.5);
+  }
 }
 
 // ── Wall-mounted decorations. Purely cosmetic (no collider) — this game's
@@ -720,28 +565,12 @@ function pickWallSide(rng, room) {
   return sides[Math.floor(rng() * sides.length)];
 }
 
-// Mount a box flush against a wall's inner face, `along` the wall's length
-// (offset from its centre) and `extraOffset` further out from the wall (for
-// layering, e.g. a picture on top of its own frame).
-function mountBox(group, room, side, decorW, decorH, thickness, mat, heightY, along, extraOffset = 0) {
-  const wg = wallGeometry(room, side);
-  const px = wg.cx + wg.tx * along;
-  const pz = wg.cz + wg.tz * along;
-  const off = CONFIG.wallThickness / 2 + thickness / 2 + 0.02 + extraOffset;
-  const mx = px + wg.nx * off;
-  const mz = pz + wg.nz * off;
-  const sizeX = wg.tx !== 0 ? decorW : thickness;
-  const sizeZ = wg.tz !== 0 ? decorW : thickness;
-  addDecor(group, new THREE.BoxGeometry(sizeX, decorH, sizeZ), mat, mx, heightY, mz);
-}
-
-// Mount a wall-decor MODEL (as opposed to mountBox's plain box) flush
-// against a wall's inner face. The registered template must be `wallMount:
-// true` (see objects.js) — already Y-centred rather than floor-resting, and
-// authored with its thin/depth axis along local Z, so rotating around Y
-// aligns that axis with the wall's outward normal (same as the arrow
-// decals' facing math). Returns false (does nothing) if the model hasn't
-// loaded yet, so callers keep a procedural fallback for that rare case.
+// Mount a wall-decor MODEL flush against a wall's inner face. The registered
+// template must be `wallMount: true` (see objects.js) — already Y-centred
+// rather than floor-resting, and authored with its thin/depth axis along local
+// Z, so rotating around Y aligns that axis with the wall's outward normal (same
+// as the SVG signs' facing math). Does nothing (returns false) if the model
+// hasn't loaded — asset-only, so there's no procedural fallback.
 function mountModel(group, room, side, id, along, heightY) {
   const obj = getObject(id);
   if (!obj) return false;
@@ -757,75 +586,11 @@ function mountModel(group, room, side, id, along, heightY) {
 }
 
 function addWallDecor(group, rng, room) {
-  if (rng() >= 0.55) return; // just over half of rooms get one
+  if (rng() >= 0.45) return; // just under half of rooms get one
   const side = pickWallSide(rng, room);
-  const wg = wallGeometry(room, side);
-  const along = (rng() * 2 - 1) * Math.max(wg.length / 2 - 1.2, 0.2);
-
-  if (room.theme === "festival") {
-    // The registered picture-frame model if it's loaded; else the old
-    // wood-border + coloured-"photo" box composite.
-    const y = 1.5 + rng() * 0.5;
-    if (!mountModel(group, room, side, "picture-frame", along, y)) {
-      const w = 0.55 + rng() * 0.3;
-      const h = 0.4 + rng() * 0.25;
-      mountBox(group, room, side, w, h, 0.03, woodMat, y, along, 0);
-      const mat = festiveMats[Math.floor(rng() * festiveMats.length)];
-      mountBox(group, room, side, w * 0.7, h * 0.65, 0.015, mat, y, along, 0.02);
-    }
-  } else if (room.theme === "toys") {
-    // A small shelf with a couple of toys on it — same shape as storage's
-    // wall shelf below, just toy-coloured, so it reads clearly as "toys on
-    // a shelf" rather than an ambiguous scatter of thin marks.
-    const w = 0.5 + rng() * 0.3;
-    const y = 1.2 + rng() * 0.5;
-    mountBox(group, room, side, w, 0.04, 0.16, woodMat, y, along, 0);
-    const px = wg.cx + wg.tx * along;
-    const pz = wg.cz + wg.tz * along;
-    const itemCount = 1 + Math.floor(rng() * 2);
-    for (let i = 0; i < itemCount; i++) {
-      const mat = toyMats[Math.floor(rng() * toyMats.length)];
-      const size = 0.08 + rng() * 0.06;
-      const off = (rng() * 2 - 1) * (w / 2 - size);
-      const ix = px + wg.tx * off + wg.nx * (CONFIG.wallThickness / 2 + 0.09);
-      const iz = pz + wg.tz * off + wg.nz * (CONFIG.wallThickness / 2 + 0.09);
-      const geo = rng() < 0.5 ? new THREE.BoxGeometry(size, size, size) : new THREE.CylinderGeometry(size / 2, size / 2, size, 8);
-      addDecor(group, geo, mat, ix, y + 0.02 + size / 2, iz);
-    }
-  } else if (room.theme === "camp") {
-    // A pinned paper or map.
-    const w = 0.35 + rng() * 0.2;
-    const h = 0.45 + rng() * 0.2;
-    const y = 1.4 + rng() * 0.5;
-    mountBox(group, room, side, w, h, 0.008, fabricMat, y, along, 0);
-  } else if (room.theme === "party") {
-    // A row of small bunting flags.
-    const flagCount = 5 + Math.floor(rng() * 4);
-    const y = 2.0 + rng() * 0.3;
-    const spacing = 0.22;
-    for (let i = 0; i < flagCount; i++) {
-      const mat = partyMats[Math.floor(rng() * partyMats.length)];
-      const bob = i % 2 === 0 ? 0 : -0.04;
-      mountBox(group, room, side, 0.14, 0.16, 0.01, mat, y + bob, along + (i - flagCount / 2) * spacing, 0);
-    }
-  } else {
-    // Storage: a wall shelf with a couple of small items on it.
-    const w = 0.8 + rng() * 0.4;
-    const y = 1.6 + rng() * 0.4;
-    mountBox(group, room, side, w, 0.05, 0.22, crateMat, y, along, 0);
-    const px = wg.cx + wg.tx * along;
-    const pz = wg.cz + wg.tz * along;
-    const itemCount = 1 + Math.floor(rng() * 3);
-    for (let i = 0; i < itemCount; i++) {
-      const mat = rng() < 0.5 ? metalMat : crateMat;
-      const size = 0.1 + rng() * 0.1;
-      const off = (rng() * 2 - 1) * (w / 2 - size);
-      const ix = px + wg.tx * off + wg.nx * (CONFIG.wallThickness / 2 + 0.11);
-      const iz = pz + wg.tz * off + wg.nz * (CONFIG.wallThickness / 2 + 0.11);
-      const geo = rng() < 0.5 ? new THREE.BoxGeometry(size, size, size) : new THREE.CylinderGeometry(size / 2, size / 2, size, 8);
-      addDecor(group, geo, mat, ix, y + 0.03 + size / 2, iz);
-    }
-  }
+  const along = (rng() * 2 - 1) * Math.max(wallGeometry(room, side).length / 2 - 1.2, 0.2);
+  // Asset-only: the wall-mounted picture-frame model — no procedural decor.
+  mountModel(group, room, side, "picture-frame", along, 1.5 + rng() * 0.5);
 }
 
 // Build one room's geometry + colliders. `materials.wall` is reused for the
@@ -855,7 +620,8 @@ function addWallSign(group, rng, room) {
 // or the room's too crowded.
 function addExtraFurniture(group, colliders, rng, room) {
   if (rng() >= 0.35) return;
-  const id = ["sofa", "boombox", "ammo-box"][Math.floor(rng() * 3)];
+  const pool = ["sofa", "boombox", "ammo-box", "television", "fire-extinguisher", "trash-can", "potted-plant"];
+  const id = pool[Math.floor(rng() * pool.length)];
   const obj = getObject(id);
   if (!obj) return;
   const spot = randomSpot(rng, room, Math.max(obj.halfX, obj.halfZ) + 0.3, colliders);
