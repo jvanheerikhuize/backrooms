@@ -59,6 +59,21 @@ in essence, never an exact copy.
 Grounded in canonical **Level 0**: sickly mono-yellow, damp carpet, humming
 fluorescents, a maze that quietly rearranges when you aren't looking.
 
+**The visual target is Kane Pixels' "The Backrooms (Found Footage)" (2022)** — the
+short film that redefined how the mythos looks. The important thing about it is
+that it is *grounded*, not stylised: it reads like real camcorder footage of a
+real, mundane, badly-maintained building. Concretely, that means
+
+- **desaturated**, not vivid — the dread comes from the light, not the hue. The
+  walls are a muted, damp ochre, closer to grey-green than to canary yellow;
+- a **low, off-white suspended acoustic-tile ceiling**, clearly *lighter* than the
+  walls, hung with rectangular fluorescent troffers. This is the single biggest
+  tell, and it's what most Backrooms imitations get wrong;
+- **contrast**: tight pools of light with genuine darkness between them, never an
+  evenly-lit room;
+- **architecture**, not abstraction — hallways, doorframes, skirting boards, rooms
+  with doors. It should look like somewhere that was *built*, and then abandoned.
+
 - Dominant sickly-yellow wallpaper palette as the **base** state (the wallpaper
   shade shifts subtly by location but stays yellow — as in the canon).
 - Fluorescent lighting with a subtle flicker/buzz; brightness varies

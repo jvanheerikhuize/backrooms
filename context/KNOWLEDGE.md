@@ -1,6 +1,6 @@
 # Knowledge graph
 
-> Generated from `knowledge.json` by `npm run kg -- render` — do not hand-edit. 49 nodes · 71 edges · updated 2026-07-12.
+> Generated from `knowledge.json` by `npm run kg -- render` — do not hand-edit. 53 nodes · 78 edges · updated 2026-07-12.
 
 Lightweight knowledge graph for the Backrooms game. Nodes are the things worth remembering (subsystems, concepts, decisions, conventions, mechanics, people, sources); edges are typed relations. Query it with `npm run kg -- <cmd>` (see context/kg.mjs) instead of reading the full prose docs. The graph indexes goal.md (design) and decisions.md (why) — drill into those via a node's `ref`.
 
@@ -70,9 +70,9 @@ Scene, render loop, place switching (goTo), entity spawning, and the dev-console
 uses → **Places** · uses → **Entity layer** · uses → **NPC presence** · uses → **World streaming** · uses → **Player controller** · uses → **Cut-scene layer** · uses → **Ambience** · uses → **Prop Room (dev)** · uses → **Stage 2 (dev)**
 
 ### World streaming `sub-world` — src/world.js
-Infinite chunk-streamed maze; layout zones; wall arrows; sparse lights. Deterministic per seed.
+Infinite chunk streaming + geometry builder: walks a chunk cell by cell, asks layout.js what is there, and emits instanced walls, doorways (stubs/lintel/frame/leaf), skirting, pillars, troffers and colliders.
 
-uses → **Config** · uses → **Seeded RNG** · uses → **Base materials** · realizes → **Layout zones** · realizes → **Green Glow / Null Zones** · realizes → **Level 0 (The Lobby)** · authored_by → **Flynn**
+uses → **Config** · uses → **Seeded RNG** · uses → **Base materials** · realizes → **Layout zones** · realizes → **Green Glow / Null Zones** · realizes → **Level 0 (The Lobby)** · authored_by → **Flynn** · uses → **Layout / floor plan**
 
 ### Special rooms `sub-rooms` — src/rooms.js
 'Someone was here' rooms (~1 per 250m²); themed model+sign placement; ~40% get a texture skin.
@@ -96,6 +96,8 @@ part_of → **Drop-a-file content pipeline** · realizes → **The Leak / altera
 
 ### Base materials `sub-materials` — src/materials.js
 Procedural canvas textures for the base yellow walls/carpet/ceiling; intentionally swappable.
+
+realizes → **Kane Pixels look**
 
 ### Player controller `sub-player` — src/player.js
 First-person movement, per-axis AABB collision, sprint + stamina.
@@ -147,6 +149,11 @@ Tilde-toggled Quake-style command console (replaced the numbered dev menu). Capt
 
 part_of → **Entry / orchestrator**
 
+### Layout / floor plan `sub-layout` — src/layout.js · context/decisions.md
+Decides WHAT the maze is, per zone, deterministically: a corridor ring plus an interior that is an office grid (rooms + doors off hallway lanes), a braided recursive-backtracker maze, or the classic open pillared hall.
+
+realizes → **The corridor ring** · authored_by → **Jerry**
+
 
 ## concepts
 
@@ -179,6 +186,12 @@ The canonical base level — mono-yellow rooms, damp carpet, humming lights, a m
 
 ### Backrooms entities `concept-entities` — context/goal.md §6.4
 The canonical roster (Faceling, Skin-Stealer, Smiler, Hound, …). The game's wandering presences belong to this family — a Faceling / Still Life the space is copying badly.
+
+### The corridor ring `concept-corridor-ring` — context/decisions.md
+Every zone is ringed by corridor, and edges on a zone boundary never carry a wall — so adjacent rings open into each other and connectivity is guaranteed structurally, without global knowledge. This is what makes a maze possible on an infinite streamed world.
+
+### Kane Pixels look `concept-kane-pixels` — context/goal.md
+The visual target: grounded found-footage Level 0 — desaturated ochre walls, damp mustard carpet, a LOW OFF-WHITE ACOUSTIC-TILE CEILING (lighter than the walls; the biggest tell), fluorescent troffers, tight pools of light with real dark between.
 
 
 ## mechanics
@@ -249,3 +262,8 @@ establishes → **Post-processing**
 Six Claude Code skills covering the fiddly repo workflows (content, entities, places, console commands, verification, close-out).
 
 establishes → **Verify in the browser** · authored_by → **Jerry**
+
+### Real floor plan + Kane Pixels aesthetic `dec-maze-layout` — 2026-07-12 · context/decisions.md
+Replaced per-edge random walls with a per-zone floor plan; restyled to Kane Pixels. Doors park at 90 degrees because collision is AABB-only.
+
+establishes → **Layout / floor plan** · establishes → **Kane Pixels look** · authored_by → **Jerry**

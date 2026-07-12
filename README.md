@@ -79,12 +79,18 @@ lives in **[context/goal.md](./context/goal.md)**, a living document that anyone
 What the game already does today:
 
 - **The Empty Yellow** — a walkable, single-player base Backrooms: first-person
-  navigation through an endless procedurally-streamed world. The map is carved
-  into **layout zones** (`config.js`) that change character as you walk — open
-  halls, dense wallpapered rooms, long corridors, and green-glowing encounter
-  clearings — over sparse flickering fluorescent fixtures that pool light on the
-  floor, with sprinting on a stamina bar. Black directional arrows scrawled on
-  the occasional wall hint at a way through.
+  navigation through an endless procedurally-streamed world, built to look like
+  **Kane Pixels' found-footage Level 0** — damp ochre wallpaper, mustard carpet, a
+  low off-white acoustic-tile ceiling, and fluorescent troffers that pool light on
+  the floor with real darkness between them.
+- **A maze you can get lost in** — the world is a real floor plan, not scattered
+  walls (`src/layout.js`). Every zone is ringed by a **corridor**, and each ring
+  opens into its neighbours', so you can always find your way out of anywhere.
+  Inside that ring, a zone is one of: an **office block** (rooms off crossing
+  hallways, each with a doorway — some doors hang open, some are gone, and some
+  are *blind doors* that open onto nothing), a **corridor maze**, or the classic
+  open pillared **hall**. Sprinting runs on a stamina bar, and black directional
+  arrows scrawled on the occasional wall hint at a way through.
 - **"Someone was here" rooms** — enclosed rooms scattered through the maze, each
   a themed trace of a past occupant (a party, a campsite, storage, toys). They're
   dressed with **real 3D models** and **wall signs** (exit, hazard, radiation…),

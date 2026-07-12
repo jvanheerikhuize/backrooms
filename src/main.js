@@ -38,6 +38,12 @@ const inventoryGrid = inventoryEl ? inventoryEl.querySelector(".inv-grid") : nul
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
+// Filmic tone mapping, slightly under-exposed. The footage look depends on
+// highlights rolling off the way a camcorder's sensor does — a fluorescent
+// panel should bloom and clip toward white, not sit there as a flat bright
+// rectangle. Linear tone mapping (three's default) can't do that.
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.95;
 
 // Scene + fog (fog hides the streaming boundary and sells the endlessness).
 const scene = new THREE.Scene();
@@ -47,15 +53,16 @@ scene.fog = new THREE.Fog(CONFIG.colors.fog, CONFIG.fogNear, CONFIG.fogFar);
 // Camera.
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 200);
 
-// Lighting. A modest hemisphere gives base visibility so the gaps between the
-// (now sparse) fixtures aren't pitch black. Down-facing surfaces (the ceiling)
-// only pick up the hemisphere's "ground" component, so a flat ambient light is
-// layered on top — otherwise the ceiling reads as near-black regardless of how
-// bright the fixtures are.
-const hemi = new THREE.HemisphereLight(CONFIG.colors.lightPanel, CONFIG.colors.carpet, 0.8);
+// Lighting. Kept deliberately LOW. The fixtures do the work: what sells the
+// aesthetic is the contrast between the pool of light under a troffer and the
+// gloom between them, and every unit of fill light flattens exactly that. The
+// hemisphere and ambient exist only so the gloom is dim rather than pitch black
+// (down-facing surfaces like the ceiling get nothing from the hemisphere's sky
+// component, so a little flat ambient is layered on top to keep them readable).
+const hemi = new THREE.HemisphereLight(CONFIG.colors.lightPanel, CONFIG.colors.carpet, 0.3);
 scene.add(hemi);
 
-const ambient = new THREE.AmbientLight(0xffffff, 0.45);
+const ambient = new THREE.AmbientLight(0xffffff, 0.2);
 scene.add(ambient);
 
 // A pool of real point-lights, reassigned each frame to the fixtures nearest the
@@ -83,7 +90,7 @@ function updateLights(px, pz, intensity) {
     const l = lightPool[i];
     if (i < n) {
       const p = lights[i];
-      l.position.set(p.x, CONFIG.wallHeight - 0.6, p.z);
+      l.position.set(p.x, CONFIG.wallHeight - 0.9, p.z);
       l.intensity = CONFIG.lightIntensity * intensity;
       l.visible = true;
     } else {
@@ -158,6 +165,19 @@ scene.add(npc.object3D);
 entities.add(npc);
 
 // Debug hook: entity count + the current nearest-presence signal.
+// Debug hook: is this world point blocked for the player, in the active place?
+// Colliders are already padded by the player radius, so a point test IS the
+// player test. This exists because a headless browser can't take pointer lock,
+// which means a scripted check can't verify the maze by walking it — but it CAN
+// flood-fill this, which is a far stronger check anyway: it proves every doorway
+// is passable and no room is sealed, rather than sampling one route.
+window.__dbgBlocked = (x, z) => {
+  for (const c of activePlace.collidersNear(x, z)) {
+    if (x >= c.minX && x <= c.maxX && z >= c.minZ && z <= c.maxZ) return true;
+  }
+  return false;
+};
+
 window.__dbgEntities = () => {
   const near = entities.nearestPresence(camera.position.x, camera.position.z, activePlace);
   return {
@@ -210,6 +230,9 @@ window.__dbgPos = () => ({
   lights: world.collectLights().length,
   litNow: lightPool.filter((l) => l.visible).length,
 });
+
+// Which layout profile governs a world point (offices / maze / halls / encounter).
+window.__dbgProfileAt = (x, z) => world.profileAt(x, z);
 
 // Dev teleport for exploring the different layout zones during testing.
 window.__dbgTeleport = (x, z) => {
@@ -499,7 +522,7 @@ devConsole
   })
   .register("fullbright", "toggle flat bright lighting", () => {
     fullbright = !fullbright;
-    ambient.intensity = fullbright ? 2.6 : 0.45;
+    ambient.intensity = fullbright ? 2.6 : 0.2;
     return `fullbright ${fullbright ? "on" : "off"}`;
   })
   .register("fog", "toggle distance fog", () => {
@@ -637,7 +660,7 @@ function animate() {
   // point-light, the emissive panels glow, all buzzing together.
   const f = flicker(t);
   materials.lightPanel.emissiveIntensity = f;
-  hemi.intensity = 0.4 + f * 0.3;
+  hemi.intensity = 0.2 + f * 0.14;
   updateLights(camera.position.x, camera.position.z, f);
 
   // Fluorescent hum tracks the same flicker so light and sound buzz together.
