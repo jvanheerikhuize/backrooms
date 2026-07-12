@@ -49,6 +49,8 @@
     { "id": "concept-still-life", "type": "concept", "name": "Still Lifes", "summary": "Distorted human copies — future NPC/entity visuals.", "ref": "context/goal.md §6.4" },
     { "id": "concept-layout-zones", "type": "concept", "name": "Layout zones", "summary": "Grid partitioned into open / rooms / corridor / encounter zones so space changes character as you walk.", "ref": "src/config.js" },
     { "id": "concept-content-pipeline", "type": "concept", "name": "Drop-a-file content pipeline", "summary": "The three registries share one pattern: drop an asset into public/, add a registry entry. Extensible by non-coders." },
+    { "id": "concept-level0", "type": "concept", "name": "Level 0 (The Lobby)", "summary": "The canonical base level — mono-yellow rooms, damp carpet, humming lights, a maze that shifts when unobserved. The game's base world IS Level 0.", "ref": "context/goal.md §6.2" },
+    { "id": "concept-entities", "type": "concept", "name": "Backrooms entities", "summary": "The canonical roster (Faceling, Skin-Stealer, Smiler, Hound, …). The game's wandering presences belong to this family — a Faceling / Still Life the space is copying badly.", "ref": "context/goal.md §6.4" },
 
     { "id": "mech-stamina", "type": "mechanic", "name": "Sprint + stamina", "summary": "Hold shift to run; stamina drains, regenerates, and locks out sprint while exhausted." },
     { "id": "sub-console", "type": "subsystem", "name": "Dev console", "file": "src/console.js", "summary": "Tilde-toggled Quake-style command console (replaced the numbered dev menu). Captures keys while open; commands registered in main.js: room/arrow/seed/tp/home/spawn/noclip/speed/fullbright/fog/stage2/proproom/ents/pos." },
@@ -100,6 +102,8 @@
     { "from": "sub-main", "rel": "uses", "to": "sub-npc" },
     { "from": "sub-npc", "rel": "uses", "to": "sub-entity" },
     { "from": "sub-npc", "rel": "realizes", "to": "concept-still-life" },
+    { "from": "sub-npc", "rel": "realizes", "to": "concept-entities" },
+    { "from": "sub-world", "rel": "realizes", "to": "concept-level0" },
     { "from": "sub-npc", "rel": "realizes", "to": "concept-shared-lobby" },
     { "from": "sub-main", "rel": "uses", "to": "sub-world" },
     { "from": "sub-main", "rel": "uses", "to": "sub-player" },

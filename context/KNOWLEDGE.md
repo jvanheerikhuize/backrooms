@@ -1,6 +1,6 @@
 # Knowledge graph
 
-> Generated from `knowledge.json` by `npm run kg -- render` — do not hand-edit. 45 nodes · 65 edges · updated 2026-07-12.
+> Generated from `knowledge.json` by `npm run kg -- render` — do not hand-edit. 47 nodes · 67 edges · updated 2026-07-12.
 
 Lightweight knowledge graph for the Backrooms game. Nodes are the things worth remembering (subsystems, concepts, decisions, conventions, mechanics, people, sources); edges are typed relations. Query it with `npm run kg -- <cmd>` (see context/kg.mjs) instead of reading the full prose docs. The graph indexes goal.md (design) and decisions.md (why) — drill into those via a node's `ref`.
 
@@ -67,7 +67,7 @@ uses → **Places** · uses → **Entity layer** · uses → **NPC presence** ·
 ### World streaming `sub-world` — src/world.js
 Infinite chunk-streamed maze; layout zones; wall arrows; sparse lights. Deterministic per seed.
 
-uses → **Config** · uses → **Seeded RNG** · uses → **Base materials** · realizes → **Layout zones** · realizes → **Green Glow / Null Zones** · authored_by → **Flynn**
+uses → **Config** · uses → **Seeded RNG** · uses → **Base materials** · realizes → **Layout zones** · realizes → **Green Glow / Null Zones** · realizes → **Level 0 (The Lobby)** · authored_by → **Flynn**
 
 ### Special rooms `sub-rooms` — src/rooms.js
 'Someone was here' rooms (~1 per 250m²); themed model+sign placement; ~40% get a texture skin.
@@ -135,7 +135,7 @@ Tiny entity list + per-frame update + a nearest-presence proximity signal. The s
 ### NPC presence `sub-npc` — src/npc.js
 First wandering presence — a dark Still-Life figure leashed near the player, avoids walls, registers on the proximity signal, carries a signature for the future presence-driven leak.
 
-uses → **Entity layer** · realizes → **Still Lifes** · realizes → **Shared lobby**
+uses → **Entity layer** · realizes → **Still Lifes** · realizes → **Backrooms entities** · realizes → **Shared lobby**
 
 ### Dev console `sub-console` — src/console.js
 Tilde-toggled Quake-style command console (replaced the numbered dev menu). Captures keys while open; commands registered in main.js: room/arrow/seed/tp/home/spawn/noclip/speed/fullbright/fog/stage2/proproom/ents/pos.
@@ -168,6 +168,12 @@ authored_by → **Flynn**
 
 ### Drop-a-file content pipeline `concept-content-pipeline`
 The three registries share one pattern: drop an asset into public/, add a registry entry. Extensible by non-coders.
+
+### Level 0 (The Lobby) `concept-level0` — context/goal.md §6.2
+The canonical base level — mono-yellow rooms, damp carpet, humming lights, a maze that shifts when unobserved. The game's base world IS Level 0.
+
+### Backrooms entities `concept-entities` — context/goal.md §6.4
+The canonical roster (Faceling, Skin-Stealer, Smiler, Hound, …). The game's wandering presences belong to this family — a Faceling / Still Life the space is copying badly.
 
 
 ## mechanics
