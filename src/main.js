@@ -15,6 +15,7 @@ import { preloadSkins } from "./textures.js";
 import { buildStage2Room, STAGE2_POS } from "./stage2.js";
 import { buildPropRoom, PROPROOM_POS } from "./proproom.js";
 import { WorldPlace, RoomPlace } from "./place.js";
+import { EntitySet } from "./entity.js";
 
 // Kick the STL model fetches off immediately so they load in parallel with
 // the synchronous setup below; awaited just before the first world.update()
@@ -143,6 +144,17 @@ const propRoomPlace = new RoomPlace({
     cam.position.set(PROPROOM_POS.wx, CONFIG.eyeHeight, PROPROOM_POS.wz + place.room.size / 2 - 1.3),
 });
 let activePlace = worldPlace;
+
+// The entities living in the world — NPC presences, items, an audio entity
+// (none yet; step 2 is just the plumbing). Updated each frame after the player,
+// and the source of the `nearestPresence` proximity signal.
+const entities = new EntitySet();
+
+// Debug hook: entity count + the current nearest-presence signal (null today).
+window.__dbgEntities = () => {
+  const near = entities.nearestPresence(camera.position.x, camera.position.z, activePlace);
+  return { count: entities.list.length, nearest: near ? { dist: +near.dist.toFixed(2) } : null };
+};
 
 // Switch to a place: render its scene, apply its vignette + audio bed, spawn the
 // camera there, and stream it (the world streams; fixed rooms don't). One code
@@ -527,6 +539,17 @@ function animate() {
   // Keep the active place streamed around the player — the world streams chunks;
   // the fixed dev rooms are a no-op here.
   activePlace.stream(camera.position.x, camera.position.z);
+
+  // Update the entity layer (proximity signal + each entity). A no-op today —
+  // there are no entities yet — but this is where NPCs/items/audio plug in.
+  entities.update(dt, {
+    dt,
+    time: t,
+    player,
+    place: activePlace,
+    focus: { x: camera.position.x, z: camera.position.z },
+    entities,
+  });
 
   // Flicker the fluorescents; the sparse fixtures nearest the player get a real
   // point-light, the emissive panels glow, all buzzing together.
