@@ -162,17 +162,71 @@ function arrowTexture() {
   return tex;
 }
 
+// Whitewashed brick — Stage 2's wall material, distinct from the main
+// game's sickly-yellow wallpaper. A running-bond grid of thin black grout
+// lines over an off-white base, with faint noise so it doesn't read flat.
+function concreteTexture() {
+  const { c, ctx } = makeCanvas(256);
+  ctx.fillStyle = "#e9e8e2"; // off-white base
+  ctx.fillRect(0, 0, 256, 256);
+
+  // Fine speckle for a painted-plaster feel, not a flat fill.
+  const img = ctx.getImageData(0, 0, 256, 256);
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const n = (Math.random() - 0.5) * 6;
+    d[i] += n;
+    d[i + 1] += n;
+    d[i + 2] += n;
+  }
+  ctx.putImageData(img, 0, 0);
+
+  // Brick grid: running-bond courses of black grout lines.
+  const brickW = 10;
+  const brickH = 12;
+  ctx.strokeStyle = "#000000";
+  ctx.lineWidth = 1;
+
+  for (let row = 0, y = 0; y <= 256; row++, y += brickH) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(256, y);
+    ctx.stroke();
+
+    const offset = row % 2 === 0 ? 0 : brickW / 2;
+    for (let x = offset; x < 256; x += brickW) {
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x, Math.min(y + brickH, 256));
+      ctx.stroke();
+    }
+  }
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 4;
+  return tex;
+}
+
 // Build once and reuse across all chunks.
 export function createMaterials() {
   const wallTex = wallpaperTexture();
   const carpetTex = carpetTexture();
   const arrowTex = arrowTexture();
+  const concreteTex = concreteTexture();
 
   const wall = new THREE.MeshStandardMaterial({
     map: wallTex,
     color: 0xffffff,
     roughness: 0.85,
     metalness: 0.0,
+  });
+
+  const concrete = new THREE.MeshStandardMaterial({
+    map: concreteTex,
+    color: 0xffffff,
+    roughness: 0.95,
+    metalness: 0.05,
   });
 
   const carpet = new THREE.MeshStandardMaterial({
@@ -215,5 +269,5 @@ export function createMaterials() {
     side: THREE.DoubleSide,
   });
 
-  return { wall, carpet, ceiling, lightPanel, marker, arrow, _textures: [wallTex, carpetTex, arrowTex] };
+  return { wall, concrete, carpet, ceiling, lightPanel, marker, arrow, _textures: [wallTex, carpetTex, arrowTex, concreteTex] };
 }

@@ -12,6 +12,7 @@
 
 const LS_MUTED = "backrooms.audio.muted";
 const LS_VOLUME = "backrooms.audio.volume";
+const BED_LEVEL = 0.9; // the brown-noise bed's normal gain (see start())
 
 // Fill a buffer with brown (Brownian) noise: a running integral of white noise.
 // A one-pole low-pass then shaves the residual high-frequency fizz so the bed
@@ -81,7 +82,7 @@ export class Ambience {
     bed.buffer = bedBuffer;
     bed.loop = true;
     this.bedGain = ctx.createGain();
-    this.bedGain.gain.value = 0.9;
+    this.bedGain.gain.value = BED_LEVEL;
     // Roll off the very top so the bed stays a warm rumble, not a hiss.
     const bedFilter = ctx.createBiquadFilter();
     bedFilter.type = "lowpass";
@@ -173,5 +174,18 @@ export class Ambience {
       const target = muted ? 0.0001 : this.volume;
       this.master.gain.setTargetAtTime(target, this.ctx.currentTime, 0.05);
     }
+  }
+
+  // Silence just the brown-noise "static" bed, independent of the fluorescent
+  // hum and the mute toggle — used for areas that shouldn't carry the main
+  // game's room-tone rumble, like Stage 2.
+  muteBed() {
+    if (!this.bedGain || !this.ctx) return;
+    this.bedGain.gain.setTargetAtTime(0.0001, this.ctx.currentTime, 0.2);
+  }
+
+  unmuteBed() {
+    if (!this.bedGain || !this.ctx) return;
+    this.bedGain.gain.setTargetAtTime(BED_LEVEL, this.ctx.currentTime, 0.2);
   }
 }

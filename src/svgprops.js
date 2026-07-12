@@ -31,14 +31,10 @@ import { SVGLoader } from "three/addons/loaders/SVGLoader.js";
 // widthMeters  the sign's rendered width; height follows the SVG's aspect ratio
 // color        fallback fill for any path whose SVG `fill` is "none"/missing
 export const SVG_REGISTRY = [
-  { id: "arrow", file: "/models/svg/arrow.svg", label: "directional arrow", widthMeters: 0.8 },
   { id: "exit", file: "/models/svg/exit.svg", label: "emergency exit sign", widthMeters: 0.9 },
   { id: "hazard", file: "/models/svg/hazard.svg", label: "hazard warning", widthMeters: 0.6 },
-  { id: "radiation", file: "/models/svg/radiation.svg", label: "radiation trefoil", widthMeters: 0.6 },
   { id: "no-entry", file: "/models/svg/no-entry.svg", label: "no-entry sign", widthMeters: 0.6 },
-  { id: "lightning", file: "/models/svg/lightning.svg", label: "electrical hazard", widthMeters: 0.5 },
   { id: "first-aid", file: "/models/svg/first-aid.svg", label: "first-aid sign", widthMeters: 0.6 },
-  { id: "skull", file: "/models/svg/skull.svg", label: "danger skull", widthMeters: 0.55 },
 ];
 
 const loader = new SVGLoader();

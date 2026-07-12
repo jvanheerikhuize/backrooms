@@ -1,7 +1,10 @@
 // Prop Room — a dev-only test chamber reachable from the dev menu, holding one
 // of EVERY registered prop so they can be inspected side by side. Like Stage 2
-// (see stage2.js) it lives at a fixed coordinate far outside the procedural
-// world and isn't part of chunk streaming.
+// (see stage2.js) it lives in its own THREE.Scene (see main.js), entirely
+// decoupled from the procedural world and from chunk streaming — a true
+// separate "dimension", not just a room parked far away in the same world
+// coordinates (the old approach also caused visible float-precision jitter at
+// that distance).
 //
 // Built lazily on first teleport (see main.js) so the object/SVG caches are
 // already warm — it clones each cached template, so it must run after
@@ -13,8 +16,9 @@ import { CONFIG } from "./config.js";
 import { OBJECT_REGISTRY, getObject } from "./objects.js";
 import { SVG_REGISTRY, getSvgProp } from "./svgprops.js";
 
-// Far from Stage 2's corner and from anything the world generator uses.
-export const PROPROOM_POS = { wx: -1_000_000, wz: 1_000_000 };
+// Local to the Prop Room's own scene — no need to be far from anything, since
+// nothing else is ever rendered or collided against in that scene.
+export const PROPROOM_POS = { wx: 0, wz: 0 };
 
 const SPACING = 2.6; // metres between grid cells
 const MARGIN = 4; // clear floor between the outermost props and the walls
@@ -64,6 +68,11 @@ export function buildPropRoom(materials) {
   const { wx, wz } = PROPROOM_POS;
   const group = new THREE.Group();
   const colliders = [];
+
+  // This scene has no shared ambient light the way the main game scene does
+  // (see main.js) — needs its own, on top of the grid of point lights below.
+  const ambient = new THREE.AmbientLight(0xffffff, 0.45);
+  group.add(ambient);
 
   // Every registered model that actually loaded, laid out in a square grid.
   const models = OBJECT_REGISTRY.map((e) => getObject(e.id)).filter(Boolean);
