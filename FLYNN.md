@@ -76,8 +76,10 @@ That's it! Your dad gets a message and can add your change to the game.
   just files you drop in and register — no coding. Tell Claude *"help me add a
   prop / a warning sign / a wall texture"* and it'll find a free one and wire it
   up. (See **Adding content** in the [README](./README.md).)
-- 🕹️ **Explore with the dev menu.** In-game, press **T** for teleports and a
-  **Prop Room** that shows every prop in the game at once — handy for seeing what
+- 🕹️ **Explore with the dev console.** In-game, press the **`~`** key (top-left of
+  your keyboard, above Tab) and type **`help`** to see every command. Try `room` to
+  teleport to a random room, `seed new` to rebuild the whole maze, or `proproom` to
+  visit a chamber showing every prop in the game at once — handy for seeing what
   you've added.
 
 Have fun, Flynn. This is your game too now. 👾🟡

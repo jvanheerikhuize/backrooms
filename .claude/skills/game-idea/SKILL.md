@@ -25,22 +25,28 @@ first slice.
 
 ## 2. Where the code lives (`src/`)
 
-Almost everything is procedural — **no image or audio asset files**, works
-offline. One deliberate exception: `objects.js` loads real STL 3D models (see
-`context/decisions.md`, "STL models are a deliberate exception..."); keep new
-asset types to that same narrow, documented exception rather than expanding it
-casually. Rendered with three.js, bundled by Vite.
+The base game is procedural — **no image or audio asset files**, works offline.
+The deliberate exceptions are three asset *registries* (3D models, SVG signs,
+surface textures); keep new asset types inside those rather than expanding the
+exception casually, and see `context/decisions.md`. Rendered with three.js,
+bundled by Vite.
 
 | File | What it does | Good for |
 | --- | --- | --- |
 | `config.js` | Central tuning knobs: palette colors, room size, fog, speeds | **Easiest safe tweaks** (colors, fog, sizes) |
-| `world.js` | Streams the endless rooms/pillars around the player | Layout, density, geometry |
+| `world.js` | Streams the endless rooms/pillars around the player | Layout, density, zone profiles |
 | `rooms.js` | Special "someone was here" rooms (themes, doorways, props) | Room content, prop themes |
-| `objects.js` | Registry + loader/cache for external STL 3D models | Adding new real 3D props |
-| `materials.js` | Procedural (canvas) textures for walls/carpet/ceiling | Look of surfaces |
+| `objects.js` | Registry + loader for glTF / STL 3D models | Adding real 3D props (`add-content`) |
+| `svgprops.js` | Registry for SVG wall signs | Signs, posters (`add-content`) |
+| `textures.js` | Registry for wall/floor/ceiling surface skins | Wallpaper, tiling (`add-content`) |
+| `materials.js` | Procedural (canvas) textures for the base surfaces | Look of the default rooms |
 | `player.js` | First-person movement + collision | Controls, speed, feel |
 | `postfx.js` | VHS / found-footage post-processing (grain, tracking, bloom) | Screen effects, glitch |
 | `audio.js` | Web Audio ambience (brown-noise bed, fluorescent hum) | Sound |
+| `cutscene.js` | The found-footage cut-scene layer | Scripted reveals |
+| `entity.js` / `npc.js` | The entity layer and the first wandering presence | Creatures (`add-entity`) |
+| `place.js` / `stage2.js` / `proproom.js` | Places you can be in, each its own scene | New levels (`add-place`) |
+| `console.js` | The tilde developer console | Debug commands (`dev-command`) |
 | `main.js` | Wires it all together in the render loop | How things connect |
 
 **Start in `config.js`** for a first change — tweaking a color or the fog is a
@@ -54,6 +60,10 @@ feel *uncanny and off*, not bright or cartoonish.
 
 ## 4. Ship it
 
-1. Make the smallest version of the change.
-2. See it running (use the `run-game` skill) and confirm it looks right.
-3. Submit it as a pull request (use the `contribute` skill).
+1. Make the smallest version of the change. If it's a prop, a creature, a new
+   level, or a debug command, there's a skill that walks the exact wiring:
+   `add-content`, `add-entity`, `add-place`, `dev-command`.
+2. See it running (`run-game`) and *prove* it works (`verify-change`).
+3. Update the docs and the knowledge graph (`close-out`) — the pre-commit hook
+   will reject the commit otherwise.
+4. Submit it as a pull request (`contribute`).

@@ -8,6 +8,21 @@ first. One entry per decision: date · what · why.
 > It indexes this log + goal.md so you can pull one answer instead of reading
 > everything. See `context/knowledge.json` and `context/KNOWLEDGE.md`.
 
+- **2026-07-12 · A skill library for the repo's fiddly workflows.** Added six
+  Claude Code skills (`.claude/skills/`) alongside the original three:
+  `add-content` (the three asset registries), `add-entity`, `add-place`,
+  `dev-command`, `verify-change`, and `close-out`. Why: the workflows that are
+  easy to get *silently* wrong were the ones with no written procedure. Chief
+  among them — registering a model in `OBJECT_REGISTRY` does nothing on its own:
+  unless it's `category: "research"` or `rooms.js` asks for it by id, it loads
+  fine and never appears, with no error. Likewise the pre-commit hook rejects any
+  commit whose `KNOWLEDGE.md` is stale, which nothing warned you about until it
+  bit you; and with no tests, linter, or CI, "verified in-browser" is the only
+  gate we have, yet it lived as prose inside `run-game`. Each skill names the
+  exact files and the specific trap. Also fixed the drift left by the dev-console
+  commit (`81af172`): `FLYNN.md` still told Flynn to press **T** for a menu that
+  no longer exists, and three graph summaries still described it.
+
 - **2026-07-12 · Persistent knowledge graph over the context docs.** Added
   `context/knowledge.json` (typed nodes + typed edges) and a zero-dep query CLI
   `context/kg.mjs` (`npm run kg -- <cmd>`: map / find / show / neighbors / why /
