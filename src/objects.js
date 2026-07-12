@@ -167,6 +167,29 @@ export const OBJECT_REGISTRY = [
     targetSize: 0.27,
     roundFootprint: true,
   },
+  // Larger left-behind furniture — placed for effect via getObject() (see
+  // rooms.js addExtraFurniture), not part of the random "research" clutter.
+  {
+    id: "sofa",
+    file: "/models/gltf/Sofa_01/Sofa_01_1k.gltf",
+    format: "gltf",
+    label: "worn sofa",
+    targetSize: 1.57,
+  },
+  {
+    id: "boombox",
+    file: "/models/gltf/boombox/boombox_1k.gltf",
+    format: "gltf",
+    label: "boombox",
+    targetSize: 0.72,
+  },
+  {
+    id: "ammo-box",
+    file: "/models/gltf/ammo_box/ammo_box_1k.gltf",
+    format: "gltf",
+    label: "military ammo crate",
+    targetSize: 0.26,
+  },
 ];
 
 const stlLoader = new STLLoader();

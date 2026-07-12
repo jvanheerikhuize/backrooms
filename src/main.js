@@ -10,12 +10,13 @@ import { createComposer } from "./postfx.js";
 import { Ambience } from "./audio.js";
 import { Cutscene } from "./cutscene.js";
 import { preloadObjects } from "./objects.js";
+import { preloadSvgProps } from "./svgprops.js";
 import { buildStage2Room, STAGE2_POS } from "./stage2.js";
 
 // Kick the STL model fetches off immediately so they load in parallel with
 // the synchronous setup below; awaited just before the first world.update()
 // call, which is the first point anything actually needs them ready.
-const objectsReady = preloadObjects();
+const objectsReady = Promise.all([preloadObjects(), preloadSvgProps()]);
 
 const canvas = document.getElementById("scene");
 const overlay = document.getElementById("overlay");
