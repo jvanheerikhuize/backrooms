@@ -15,11 +15,13 @@ dreamlike alterations.
 
 ## Concept
 
-The Backrooms starts as the classic sickly-yellow liminal space. As you move
-through it, the presence of others (NPCs today, networked players later) bleeds
-in, and the world reinterprets their influence — accurate in essence, but
-usually *slightly off*. Your own input, in turn, alters the section of the
-Backrooms around you.
+You start in **Level 0, "The Lobby"** — the classic sickly-yellow liminal space
+everyone pictures. As you move through it, the presence of others (NPCs today,
+networked players later) bleeds in, and the world reinterprets their influence —
+accurate in essence, but usually *slightly off*. Your own input, in turn, alters
+the section of the Backrooms around you. (The Backrooms canonically copies
+reality and gets it wrong, so this "leak" is a lean into the mythos, not a
+departure — see **[goal.md §6](./context/goal.md)**.)
 
 - **First-person exploration** — no win/lose; the draw is wandering and reading
   the world's mutations.
@@ -133,7 +135,19 @@ Keep bundled assets **CC0 / public-domain** (Poly Haven is a good source). The
 
 ## Inspiration
 
-Draws on the Backrooms mythos and Kane Pixels' *The Backrooms (Found Footage)*
-analog-horror series — noclipping, imperfect room mimicry, Still Lifes, entities
-that mimic human voices, Null Zones, and a found-footage aesthetic. See
-[context/goal.md](./context/goal.md) for how these map onto the game's mechanics.
+Draws on the whole Backrooms mythos, which has no single canon:
+
+- the **original 2019 /x/ greentext** — noclipping out of reality into ~600
+  million square miles of mono-yellow rooms, and the rule that *if you hear
+  something nearby, it has already heard you*;
+- the **community "Levels / Entities" canon** (the Fandom & Wikidot wikis) —
+  Level 0 "The Lobby," the Poolrooms, Almond Water, the M.E.G., and entities like
+  Facelings, Skin-Stealers, and Smilers (the family our "presences" belong to);
+- **Kane Pixels' *The Backrooms (Found Footage)*** — the analog-horror
+  interpretation (now an A24 film) behind the Still Lifes, Null Zones, and the
+  VHS/found-footage look.
+
+The Backrooms is a collaborative internet mythos (much wiki content is CC-BY-SA);
+this game is an original work *inspired by* it. See
+**[context/goal.md §6](./context/goal.md)** for how each concept maps onto the
+game's mechanics.
