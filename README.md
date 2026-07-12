@@ -61,6 +61,8 @@ npm run preview    # serve the production build locally
 | **W A S D** / arrow keys | Move |
 | **Mouse** | Look |
 | **Shift** | Run (drains the stamina bar) |
+| **F** | Open / close the inventory |
+| **T** | Open / close the dev menu (teleports + test rooms) |
 | **C** | Replay the found-footage cut-scene |
 | **V** | Reduce camera motion (accessibility) |
 | **M** | Mute / unmute audio |
@@ -79,15 +81,54 @@ What the game already does today:
   into **layout zones** (`config.js`) that change character as you walk — open
   halls, dense wallpapered rooms, long corridors, and green-glowing encounter
   clearings — over sparse flickering fluorescent fixtures that pool light on the
-  floor, with sprinting on a stamina bar.
+  floor, with sprinting on a stamina bar. Black directional arrows scrawled on
+  the occasional wall hint at a way through.
+- **"Someone was here" rooms** — enclosed rooms scattered through the maze, each
+  a themed trace of a past occupant (a party, a campsite, storage, toys). They're
+  dressed with **real 3D models** and **wall signs** (exit, hazard, radiation…),
+  never bare boxes. Some rooms are **"leaked"** — re-skinned with alternate
+  wall/floor/ceiling textures, a different reality bleeding into the yellow.
+- **Drop-a-file content** — props are real assets you can add without coding:
+  **glTF/STL models** (`src/objects.js`), **SVG wall signs** (`src/svgprops.js`),
+  and **image textures** (`src/textures.js`). Everything bundled is **CC0 /
+  public-domain** (see the `NOTICE.md` files under `public/models/` and
+  `public/textures/`). See **[Adding content](#adding-content)**.
 - **Audio & ambience** — a procedural brown-noise room-tone bed and a fluorescent
   hum coupled to the light flicker, with a mute toggle (M). No audio assets — all
   Web Audio.
 - **Found-footage camera** — a cut-scene layer (grain, VHS tracking, chromatic
   aberration, camcorder HUD) used for the opening title screen.
+- **Dev tools** — press **T** for a dev menu: teleport to a random room or a wall
+  arrow, re-roll the world seed, or jump to two off-map test spaces — **Stage 2**
+  (a bare placeholder room) and the **Prop Room** (one of every registered prop
+  laid out for inspection).
 
 Where it goes next is up for grabs — the leak/alteration system, NPCs as local
 presences, new levels, creatures… decide in [goal.md](./context/goal.md).
+
+## Adding content
+
+Props are asset files, so you can grow the world without touching game logic:
+
+- **A 3D prop** — drop a `.gltf`/`.stl` under `public/models/` and add an entry to
+  `src/objects.js`.
+- **A wall sign** — drop a filled-shape `.svg` under `public/models/svg/` and add
+  an entry to `src/svgprops.js`.
+- **A surface texture** ("leaked" wall/floor/ceiling) — drop a seamless image
+  under `public/textures/` and add an entry to `src/textures.js`.
+
+Keep bundled assets **CC0 / public-domain** (Poly Haven is a good source). The
+`NOTICE.md` in each folder explains the format and lists sources.
+
+## For contributors
+
+- **Design & direction** live in **[context/goal.md](./context/goal.md)**; the
+  running log of *why* things are the way they are is
+  **[context/decisions.md](./context/decisions.md)**.
+- **Knowledge graph** — a queryable map of the codebase's subsystems, concepts,
+  decisions, and conventions. Instead of reading the docs end-to-end, run
+  `npm run kg -- map` (overview), `npm run kg -- find <term>`, or
+  `npm run kg -- why <id>`. See **[context/KNOWLEDGE.md](./context/KNOWLEDGE.md)**.
 
 ## Inspiration
 

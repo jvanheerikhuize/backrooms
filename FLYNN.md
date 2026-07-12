@@ -72,5 +72,12 @@ That's it! Your dad gets a message and can add your change to the game.
   change what the game is about — add a level, invent a creature, or a whole new
   idea. Just tell Claude *"help me update the goal — I want …"*. It's yours now!
 - 🎨 Change a color or the fog in the game and see what happens.
+- 📦 **Add a prop.** The game's furniture, signs, and even wall/floor textures are
+  just files you drop in and register — no coding. Tell Claude *"help me add a
+  prop / a warning sign / a wall texture"* and it'll find a free one and wire it
+  up. (See **Adding content** in the [README](./README.md).)
+- 🕹️ **Explore with the dev menu.** In-game, press **T** for teleports and a
+  **Prop Room** that shows every prop in the game at once — handy for seeing what
+  you've added.
 
 Have fun, Flynn. This is your game too now. 👾🟡
