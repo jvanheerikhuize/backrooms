@@ -137,6 +137,11 @@ First wandering presence — a dark Still-Life figure leashed near the player, a
 
 uses → **Entity layer** · realizes → **Still Lifes** · realizes → **Shared lobby**
 
+### Dev console `sub-console` — src/console.js
+Tilde-toggled Quake-style command console (replaced the numbered dev menu). Captures keys while open; commands registered in main.js: room/arrow/seed/tp/home/spawn/noclip/speed/fullbright/fog/stage2/proproom/ents/pos.
+
+part_of → **Entry / orchestrator**
+
 
 ## concepts
 
@@ -171,11 +176,6 @@ The three registries share one pattern: drop an asset into public/, add a regist
 Hold shift to run; stamina drains, regenerates, and locks out sprint while exhausted.
 
 part_of → **Player controller** · authored_by → **Flynn**
-
-### Dev menu `mech-dev-menu`
-T opens it; 1 random room, 2 arrow, 3 reset seed, 4 Stage 2, 5 Prop Room.
-
-part_of → **Entry / orchestrator**
 
 ### Found-footage aesthetic `mech-found-footage`
 REC light / VHS tracking / datestamp camcorder framing; the opening plays as a cut-scene.

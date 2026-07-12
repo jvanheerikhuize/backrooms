@@ -51,7 +51,7 @@
     { "id": "concept-content-pipeline", "type": "concept", "name": "Drop-a-file content pipeline", "summary": "The three registries share one pattern: drop an asset into public/, add a registry entry. Extensible by non-coders." },
 
     { "id": "mech-stamina", "type": "mechanic", "name": "Sprint + stamina", "summary": "Hold shift to run; stamina drains, regenerates, and locks out sprint while exhausted." },
-    { "id": "mech-dev-menu", "type": "mechanic", "name": "Dev menu", "summary": "T opens it; 1 random room, 2 arrow, 3 reset seed, 4 Stage 2, 5 Prop Room." },
+    { "id": "sub-console", "type": "subsystem", "name": "Dev console", "file": "src/console.js", "summary": "Tilde-toggled Quake-style command console (replaced the numbered dev menu). Captures keys while open; commands registered in main.js: room/arrow/seed/tp/home/spawn/noclip/speed/fullbright/fog/stage2/proproom/ents/pos." },
     { "id": "mech-found-footage", "type": "mechanic", "name": "Found-footage aesthetic", "summary": "REC light / VHS tracking / datestamp camcorder framing; the opening plays as a cut-scene." },
 
     { "id": "src-polyhaven", "type": "source", "name": "Poly Haven", "summary": "CC0 models + seamless textures; pullable via api.polyhaven.com.", "tags": ["cc0"] },
@@ -109,7 +109,7 @@
     { "from": "sub-main", "rel": "uses", "to": "sub-stage2" },
     { "from": "sub-cutscene", "rel": "uses", "to": "sub-postfx" },
 
-    { "from": "mech-dev-menu", "rel": "part_of", "to": "sub-main" },
+    { "from": "sub-console", "rel": "part_of", "to": "sub-main" },
     { "from": "mech-stamina", "rel": "part_of", "to": "sub-player" },
     { "from": "mech-found-footage", "rel": "part_of", "to": "sub-cutscene" },
     { "from": "mech-found-footage", "rel": "uses", "to": "sub-postfx" },
