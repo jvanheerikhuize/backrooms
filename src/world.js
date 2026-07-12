@@ -65,11 +65,28 @@ const arrowGeo = new THREE.PlaneGeometry(2.6, 1.3); // wide — matches the scra
 // onto. Depends on zoneOf/profileFor/corridorForZone/edgeVerdict/wallSouth/
 // wallWest/corridorSouth/corridorWest, all defined later in this file as
 // hoisted function declarations.
-function directionClear(axis, gx, gy, faceSign, dir, steps) {
+//
+// `bounds` + `wallSouthCells`/`wallWestCells` let this see walls added by
+// buildChunk's minimum-density "top-up" pass (see there) — those are placed
+// by a per-chunk shuffled RNG, not the deterministic wallSouth()/wallWest()
+// this function would otherwise fall back to, so a cell inside the current
+// chunk could have a top-up wall that the deterministic check knows nothing
+// about. For a cell within `bounds`, the (by-then-complete, both natural AND
+// top-up) cell sets are authoritative and checked directly; outside it, this
+// falls back to the deterministic per-cell check, which only misses a
+// neighbouring chunk's OWN top-up walls — a narrower, harder-to-avoid gap
+// (that chunk may not even be built yet) than getting confused by this
+// chunk's own top-up walls, which is the failure mode this exists to fix.
+function directionClear(axis, gx, gy, faceSign, dir, steps, bounds, wallSouthCells, wallWestCells) {
+  const inBounds = (x, y) => x >= bounds.gx0 && x < bounds.gx1 && y >= bounds.gy0 && y < bounds.gy1;
   if (axis === "x") {
     const row = faceSign > 0 ? gy : gy - 1;
     for (let i = 1; i <= steps; i++) {
       const edgeX = dir > 0 ? gx + i : gx - i + 1; // wallWest(N,row) = wall between N-1 and N
+      if (inBounds(edgeX, row)) {
+        if (wallWestCells.has(edgeX + "," + row)) return false;
+        continue;
+      }
       const { zx, zy } = zoneOf(edgeX, row);
       const profile = profileFor(zx, zy);
       const corridor = profile.corridor ? corridorForZone(zx, zy) : null;
@@ -79,6 +96,10 @@ function directionClear(axis, gx, gy, faceSign, dir, steps) {
     const col = faceSign > 0 ? gx : gx - 1;
     for (let i = 1; i <= steps; i++) {
       const edgeZ = dir > 0 ? gy + i : gy - i + 1; // wallSouth(col,N) = wall between N-1 and N
+      if (inBounds(col, edgeZ)) {
+        if (wallSouthCells.has(col + "," + edgeZ)) return false;
+        continue;
+      }
       const { zx, zy } = zoneOf(col, edgeZ);
       const profile = profileFor(zx, zy);
       const corridor = profile.corridor ? corridorForZone(zx, zy) : null;
@@ -91,27 +112,35 @@ function directionClear(axis, gx, gy, faceSign, dir, steps) {
 // Very rare black directional arrow painted on a wall face. `axis` matches
 // the wall's own axis ("x" = south wall, spans world X; "z" = west wall,
 // spans world Z); (px,pz) is that wall's centre. Deterministic per cell so
-// it doesn't flicker in/out as chunks stream. Registers a "come stand here
-// and look at it" spot on `world.arrows` (deduped so re-streaming the same
-// cell doesn't pile up duplicates) for the T-menu's "teleport to arrow".
-function maybeAddArrow(world, group, materials, salt, gx, gy, axis, px, pz) {
+// it doesn't flicker in/out as chunks stream. The decal mesh is recreated
+// EVERY time this wall segment's chunk is (re)built — including after being
+// streamed out and back in, since disposeChunk tears the whole chunk group
+// down — otherwise a known arrow you teleport back to would show its bare
+// wall with no decal. `world._arrowKeys` only guards the separate "come
+// stand here and look at it" entry on `world.arrows` (the T-menu's teleport
+// pool), so re-streaming the same cell can't pile up duplicate list entries.
+function maybeAddArrow(world, group, materials, salt, gx, gy, axis, px, pz, bounds, wallSouthCells, wallWestCells) {
   const key = axis + "," + gx + "," + gy;
-  if (world._arrowKeys.has(key)) return;
   const rng = rngFor(salt, gx, gy);
   if (rng() >= CONFIG.arrowChance) return;
-  world._arrowKeys.add(key);
 
   const faceSign = rng() < 0.5 ? 1 : -1;
 
   // Point it toward wherever's actually walkable instead of a coin flip:
   // check a few cells out both ways and mirror toward whichever is clear.
+  // If NEITHER direction is actually walkable for `sightCells`, don't paint
+  // an arrow here at all — one that points at a wall a couple of tiles out
+  // is worse than no arrow, since it's telling the player to go somewhere
+  // they can't. Deterministic per cell, so this cleanly and permanently
+  // skips that spot rather than flickering in/out as chunks stream.
   const sightCells = 3;
-  const posClear = directionClear(axis, gx, gy, faceSign, 1, sightCells);
-  const negClear = directionClear(axis, gx, gy, faceSign, -1, sightCells);
+  const posClear = directionClear(axis, gx, gy, faceSign, 1, sightCells, bounds, wallSouthCells, wallWestCells);
+  const negClear = directionClear(axis, gx, gy, faceSign, -1, sightCells, bounds, wallSouthCells, wallWestCells);
   let mirror;
-  if (posClear && !negClear) mirror = axis === "x" ? false : true;
-  else if (negClear && !posClear) mirror = axis === "x" ? true : false;
-  else mirror = rng() < 0.5; // both clear, or neither — no strong signal either way
+  if (posClear && negClear) mirror = rng() < 0.5; // either way genuinely works — pick freely
+  else if (posClear) mirror = axis === "x" ? false : true;
+  else if (negClear) mirror = axis === "x" ? true : false;
+  else return; // neither direction is actually walkable — skip this arrow entirely
 
   const h = 1.5 + (rng() - 0.5) * 0.8; // roughly eye-height, some vertical jitter
   const mesh = new THREE.Mesh(arrowGeo, materials.arrow);
@@ -132,6 +161,8 @@ function maybeAddArrow(world, group, materials, salt, gx, gy, axis, px, pz) {
   const standOff = 1.4;
   const standX = axis === "x" ? x : px + faceSign * (wallThickness / 2 + standOff);
   const standZ = axis === "x" ? pz + faceSign * (wallThickness / 2 + standOff) : z;
+  if (world._arrowKeys.has(key)) return; // decal mesh above is rebuilt every time; the list entry only once
+  world._arrowKeys.add(key);
   const dx = x - standX;
   const dz = z - standZ;
   const len = Math.hypot(dx, dz) || 1;
@@ -432,6 +463,14 @@ export class World {
     const pillarCells = new Set(); // "gx,gy" already holding a pillar, for top-up dedupe
     const wallSouthCells = new Set(); // "gx,gy" already holding a south wall, for top-up dedupe
     const wallWestCells = new Set(); // "gx,gy" already holding a west wall, for top-up dedupe
+    // Every south/west wall built below is a candidate for an arrow decal,
+    // but placing arrows here (as this used to) is too early — the
+    // minimum-density top-up pass below adds more walls afterward, and an
+    // arrow's "is this direction actually walkable" check needs to see ALL
+    // of this chunk's walls, top-up included. So this just remembers where
+    // the candidates are; the actual maybeAddArrow calls happen once both
+    // passes are done and wallSouthCells/wallWestCells are complete.
+    const arrowCandidates = [];
     const m = new THREE.Matrix4();
 
     for (let ly = 0; ly < chunkCells; ly++) {
@@ -461,7 +500,7 @@ export class World {
           const hl = cellSize / 2 + CONFIG.playerRadius;
           const ht = wallThickness / 2 + CONFIG.playerRadius;
           colliders.push({ minX: wx - hl, maxX: wx + hl, minZ: ez - ht, maxZ: ez + ht });
-          maybeAddArrow(this, group, this.materials, SALT.arrowS, gx, gy, "x", wx, ez);
+          arrowCandidates.push({ salt: SALT.arrowS, gx, gy, axis: "x", px: wx, pz: ez });
         }
 
         // West edge wall (along Z).
@@ -473,7 +512,7 @@ export class World {
           const hl = cellSize / 2 + CONFIG.playerRadius;
           const ht = wallThickness / 2 + CONFIG.playerRadius;
           colliders.push({ minX: ex - ht, maxX: ex + ht, minZ: wz - hl, maxZ: wz + hl });
-          maybeAddArrow(this, group, this.materials, SALT.arrowW, gx, gy, "z", ex, wz);
+          arrowCandidates.push({ salt: SALT.arrowW, gx, gy, axis: "z", px: ex, pz: wz });
         }
 
         // Encounter marker at the zone centre.
@@ -524,7 +563,7 @@ export class World {
             const hl = cellSize / 2 + CONFIG.playerRadius;
             const ht = wallThickness / 2 + CONFIG.playerRadius;
             colliders.push({ minX: wx - hl, maxX: wx + hl, minZ: ez - ht, maxZ: ez + ht });
-            maybeAddArrow(this, group, this.materials, SALT.arrowS, gx, gy, "x", wx, ez);
+            arrowCandidates.push({ salt: SALT.arrowS, gx, gy, axis: "x", px: wx, pz: ez });
           } else {
             if (wallWestCells.has(key)) continue;
             const ex = wx - cellSize / 2;
@@ -534,7 +573,7 @@ export class World {
             const hl = cellSize / 2 + CONFIG.playerRadius;
             const ht = wallThickness / 2 + CONFIG.playerRadius;
             colliders.push({ minX: ex - ht, maxX: ex + ht, minZ: wz - hl, maxZ: wz + hl });
-            maybeAddArrow(this, group, this.materials, SALT.arrowW, gx, gy, "z", ex, wz);
+            arrowCandidates.push({ salt: SALT.arrowW, gx, gy, axis: "z", px: ex, pz: wz });
           }
         } else {
           if (pillarCells.has(key)) continue;
@@ -546,6 +585,16 @@ export class World {
         }
         blockerCount++;
       }
+    }
+
+    // Now that both the main loop and the top-up pass are done, wallSouthCells
+    // /wallWestCells hold every wall this chunk actually built — safe to
+    // resolve each arrow candidate's "is this direction actually walkable"
+    // check against the complete picture (see the arrowCandidates comment
+    // above and directionClear's).
+    const bounds = { gx0: cx * chunkCells, gx1: cx * chunkCells + chunkCells, gy0: cy * chunkCells, gy1: cy * chunkCells + chunkCells };
+    for (const c of arrowCandidates) {
+      maybeAddArrow(this, group, this.materials, c.salt, c.gx, c.gy, c.axis, c.px, c.pz, bounds, wallSouthCells, wallWestCells);
     }
 
     // Every special room gets its own guaranteed ceiling light — without

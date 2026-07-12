@@ -22,6 +22,12 @@ resolution, loaded and normalised by `src/objects.js` (see `preloadObjects`).
 | `CheeseBox_01` (wooden-crate)  | Cheese Box 01    | Gabriel Radić   |
 | `Shelf_01` (shelf)             | Shelf 01         | Gabriel Radić   |
 | `cardboard_box_01` (cardboard-box) | Cardboard Box 01 | Rahul Chaudhary |
+| `WoodenTable_01` (table)       | Wooden Table 01  | Ethan Place     |
+| `Lantern_01` (lantern)         | Lantern 01       | Rajil Jose Macatangay |
+| `fancy_picture_frame_01` (picture-frame) | Fancy Picture Frame 01 | Rob Tuytel (scan/painting), Rico Cilliers (modeling) |
+| `rubber_duck_toy` (toy-duck)   | Rubber Duck Toy  | Plat251         |
+| `baseball_01` (toy-baseball)   | Baseball 01      | Rico Cilliers   |
+| `small_oil_can_01` (oil-can)   | Small Oil Can 01 | Raven van de Werken |
 
 To add more: download a CC0 glTF (e.g. from the Poly Haven API,
 `https://api.polyhaven.com/files/<AssetName>`, the `gltf.1k.gltf` entry plus its

@@ -10,6 +10,7 @@ import { createComposer } from "./postfx.js";
 import { Ambience } from "./audio.js";
 import { Cutscene } from "./cutscene.js";
 import { preloadObjects } from "./objects.js";
+import { buildStage2Room, STAGE2_POS } from "./stage2.js";
 
 // Kick the STL model fetches off immediately so they load in parallel with
 // the synchronous setup below; awaited just before the first world.update()
@@ -20,6 +21,7 @@ const canvas = document.getElementById("scene");
 const overlay = document.getElementById("overlay");
 const audioIndicator = document.getElementById("audio-indicator");
 const cutsceneHud = document.getElementById("cutscene-hud");
+const ccStamp = cutsceneHud ? cutsceneHud.querySelector(".cc-stamp") : null;
 const staminaEl = document.getElementById("stamina");
 const staminaFill = document.getElementById("stamina-fill");
 const inventoryEl = document.getElementById("inventory");
@@ -90,6 +92,14 @@ const world = new World(scene, materials);
 const player = new Player(camera, canvas);
 scene.add(player.object);
 const fx = createComposer(renderer, scene, camera);
+
+// Stage 2 — a separate, plain placeholder room, reachable only from the dev
+// menu (never by walking there — see stage2.js for why). Built once and
+// added straight to the main scene rather than through World's chunk
+// streaming, since it isn't part of the infinite procedural maze at all.
+const stage2 = buildStage2Room(materials);
+scene.add(stage2.group);
+let inStage2 = false;
 
 // Building chunks (world.update) is deferred until objectsReady resolves —
 // see the bottom of this file — so no room's deterministic prop rng stream
@@ -217,9 +227,27 @@ function resetSeed() {
   player.yaw = 0;
   player.pitch = 0;
   camera.rotation.set(0, 0, 0);
+  seedStartElapsed = clock.getElapsedTime(); // the bottom-left stamp restarts from 00:00:00
   return { seed: CONFIG.seed };
 }
 window.__dbgResetSeed = resetSeed;
+
+// Dev menu option 4 — jump to Stage 2, or back to Stage 1 if already there.
+// Stage 2 isn't part of World's chunk streaming (see stage2.js), so entering
+// it just parks the camera at its fixed coordinate and switches player
+// collision over to its own small fixed collider set; leaving resumes normal
+// world streaming from the spawn marker.
+function toggleStage2() {
+  inStage2 = !inStage2;
+  const pos = inStage2 ? STAGE2_POS : SPAWN_POS;
+  camera.position.set(pos.wx, CONFIG.eyeHeight, pos.wz);
+  player.yaw = 0;
+  player.pitch = 0;
+  camera.rotation.set(0, 0, 0);
+  if (!inStage2) world.update(pos.wx, pos.wz);
+  return { inStage2 };
+}
+window.__dbgToggleStage2 = toggleStage2;
 
 // Player/stamina debug hook for verification tooling.
 window.__dbgPlayer = () => ({
@@ -351,7 +379,8 @@ window.addEventListener("keydown", (e) => {
   }
 
   // Dev menu (T): 1 teleport to a random room, 2 teleport to an arrow,
-  // 3 reset the seed. T again (or Esc) closes it without picking anything.
+  // 3 reset the seed, 4 toggle Stage 2. T again (or Esc) closes it without
+  // picking anything.
   if (e.code === "KeyT" && player.isLocked && !inventoryOpen) {
     toggleDevMenu();
   }
@@ -364,6 +393,9 @@ window.addEventListener("keydown", (e) => {
       setDevMenuOpen(false);
     } else if (e.code === "Digit3") {
       resetSeed();
+      setDevMenuOpen(false);
+    } else if (e.code === "Digit4") {
+      toggleStage2();
       setDevMenuOpen(false);
     }
   }
@@ -390,23 +422,45 @@ function flicker(t) {
 }
 
 const clock = new THREE.Clock();
+let seedStartElapsed = 0; // clock.elapsedTime when the current seed started — the bottom-left stamp counts up from here
+let lastStampSecond = -1; // avoid rewriting the DOM every frame — only when the displayed second actually changes
+
+function formatStamp(totalSeconds) {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  const hh = String(Math.floor(s / 3600)).padStart(2, "0");
+  const mm = String(Math.floor((s % 3600) / 60)).padStart(2, "0");
+  const ss = String(s % 60).padStart(2, "0");
+  return `${hh}:${mm}:${ss}`;
+}
 
 function animate() {
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.05); // clamp on tab refocus
   const t = clock.elapsedTime;
 
+  // Bottom-left camcorder stamp: a running "how long on this seed" clock,
+  // 00:00:00 at seed start (initial load or a dev-menu reset).
+  const playSeconds = Math.floor(t - seedStartElapsed);
+  if (ccStamp && playSeconds !== lastStampSecond) {
+    lastStampSecond = playSeconds;
+    ccStamp.textContent = `▶ ${formatStamp(playSeconds)}`;
+  }
+
   // During a cut-scene the camera is driven by the cut-scene rig, not the
-  // player; otherwise normal first-person movement applies.
+  // player; otherwise normal first-person movement applies. In Stage 2,
+  // collision comes from its own small fixed set instead of the procedural
+  // world's streamed colliders.
   if (cutscene.active) {
     cutscene.update(dt, t);
   } else {
-    player.update(dt, world.collidersNear(camera.position.x, camera.position.z));
+    const colliders = inStage2 ? stage2.colliders : world.collidersNear(camera.position.x, camera.position.z);
+    player.update(dt, colliders);
     cutscene.update(dt, t); // eases the found-FX back to clean after a cut-scene
   }
 
-  // Keep the world streamed around the player.
-  world.update(camera.position.x, camera.position.z);
+  // Keep the world streamed around the player — skipped in Stage 2, which
+  // sits far outside the procedural maze and isn't part of its streaming.
+  if (!inStage2) world.update(camera.position.x, camera.position.z);
 
   // Flicker the fluorescents; the sparse fixtures nearest the player get a real
   // point-light, the emissive panels glow, all buzzing together.
