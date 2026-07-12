@@ -13,6 +13,7 @@ import * as THREE from "three";
 import { CONFIG } from "./config.js";
 import { mulberry32, hashCell } from "./rng.js";
 import { randomObject, getObject } from "./objects.js";
+import { randomSvgProp } from "./svgprops.js";
 
 const RS = CONFIG.specialRooms;
 const SALT_SHAPE = 0x7001;
@@ -830,6 +831,44 @@ function addWallDecor(group, rng, room) {
 // Build one room's geometry + colliders. `materials.wall` is reused for the
 // walls so a special room still looks built from the same place, not a
 // separate biome.
+// Mount a flat SVG 2D prop (sign/arrow/warning) flush on a random solid wall,
+// facing into the room. Purely decorative — no collider, like the other wall
+// decor. Skips silently if the SVG cache isn't ready (never breaks generation).
+function addWallSign(group, rng, room) {
+  if (rng() >= 0.5) return; // about half of rooms get a sign
+  const tpl = randomSvgProp(rng);
+  if (!tpl) return;
+  const side = pickWallSide(rng, room);
+  const wg = wallGeometry(room, side);
+  const along = (rng() * 2 - 1) * Math.max(wg.length / 2 - Math.max(tpl.halfW, 0.4) - 0.3, 0.1);
+  const y = 1.5 + rng() * 0.8;
+  const off = CONFIG.wallThickness / 2 + 0.03;
+  const sign = tpl.object3D.clone(); // shared geometry/material — never mark disposable
+  sign.position.set(wg.cx + wg.tx * along + wg.nx * off, y, wg.cz + wg.tz * along + wg.nz * off);
+  sign.rotation.y = Math.atan2(wg.nx, wg.nz); // face the wall's inward normal
+  group.add(sign);
+}
+
+// Occasionally drop one larger left-behind furniture piece (sofa / boombox /
+// ammo crate) as a floor prop. Placed by exact id (not the random research
+// pool) so these read as a deliberate trace; skips if the model isn't cached
+// or the room's too crowded.
+function addExtraFurniture(group, colliders, rng, room) {
+  if (rng() >= 0.35) return;
+  const id = ["sofa", "boombox", "ammo-box"][Math.floor(rng() * 3)];
+  const obj = getObject(id);
+  if (!obj) return;
+  const spot = randomSpot(rng, room, Math.max(obj.halfX, obj.halfZ) + 0.3, colliders);
+  if (!spot) return;
+  const { x, z } = spot;
+  const mesh = obj.object3D.clone(); // shared geometry/material — never mark disposable
+  mesh.position.set(x, 0, z);
+  mesh.rotation.y = rng() * Math.PI * 2;
+  group.add(mesh);
+  const px = CONFIG.playerRadius;
+  colliders.push({ minX: x - obj.halfX - px, maxX: x + obj.halfX + px, minZ: z - obj.halfZ - px, maxZ: z + obj.halfZ + px });
+}
+
 export function buildRoomGroup(room, materials) {
   const group = new THREE.Group();
   const colliders = [];
@@ -842,7 +881,9 @@ export function buildRoomGroup(room, materials) {
   else if (room.theme === "party") addPartyTheme(group, colliders, propRng, room);
   else addStorageTheme(group, colliders, propRng, room);
 
+  addExtraFurniture(group, colliders, propRng, room);
   addWallDecor(group, propRng, room);
+  addWallSign(group, propRng, room);
 
   return { group, colliders };
 }

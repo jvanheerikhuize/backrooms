@@ -28,6 +28,9 @@ resolution, loaded and normalised by `src/objects.js` (see `preloadObjects`).
 | `rubber_duck_toy` (toy-duck)   | Rubber Duck Toy  | Plat251         |
 | `baseball_01` (toy-baseball)   | Baseball 01      | Rico Cilliers   |
 | `small_oil_can_01` (oil-can)   | Small Oil Can 01 | Raven van de Werken |
+| `Sofa_01` (sofa)               | Sofa 01          | Kirill Sannikov |
+| `boombox` (boombox)            | Boombox          | Thomas Paul Mouilleron |
+| `ammo_box` (ammo-box)          | Ammo Box         | DanKit          |
 
 To add more: download a CC0 glTF (e.g. from the Poly Haven API,
 `https://api.polyhaven.com/files/<AssetName>`, the `gltf.1k.gltf` entry plus its

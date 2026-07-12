@@ -3,6 +3,16 @@
 Append-only, terse log of decisions that aren't obvious from the code. Newest
 first. One entry per decision: date · what · why.
 
+- **2026-07-12 · SVG-ingested 2D props (wall signs).** Added `src/svgprops.js`:
+  a second registry that parses SVG files (three's `SVGLoader`) into flat filled
+  meshes — arrow, exit, hazard, radiation, no-entry — mounted flush on room
+  walls (`rooms.js` addWallSign, reusing the wall-decor geometry). Rendered UNLIT
+  (`MeshBasicMaterial`, `DoubleSide`) so signs stay readable in the dark and show
+  from either side; overlapping fills are z-nudged in document order to avoid
+  z-fighting. SVGs are authored in-repo (original ⇒ CC0), no `<text>` (SVGLoader
+  rasterises paths, not fonts). Parallels the 3D object registry (objects.js).
+  Also added three more CC0 Poly Haven props (sofa, boombox, ammo crate), placed
+  via getObject() in rooms.js addExtraFurniture.
 - **2026-07-12 · Added Stage 2 — a second area reachable only from the dev
   menu.** New `src/stage2.js`: a single plain enclosed room (reused wall/
   carpet/ceiling materials, one light — deliberately undecorated, a
