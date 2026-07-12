@@ -3,6 +3,97 @@
 Append-only, terse log of decisions that aren't obvious from the code. Newest
 first. One entry per decision: date · what · why.
 
+- **2026-07-12 · Added Stage 2 — a second area reachable only from the dev
+  menu.** New `src/stage2.js`: a single plain enclosed room (reused wall/
+  carpet/ceiling materials, one light — deliberately undecorated, a
+  placeholder for whatever this becomes later) built once and added directly
+  to the main scene, NOT through World's chunk streaming — it sits at a
+  fixed coordinate (1,000,000, 1,000,000) far outside anything the seeded
+  maze or specialRooms generation could ever reach on its own, so there's no
+  route there except the new dev-menu option 4 ("Toggle Stage 2"), which
+  parks the camera there and swaps player collision over to the room's own
+  small fixed collider set. World streaming is paused while inside (no point
+  building procedural chunks a million metres from anywhere relevant);
+  toggling back returns to the spawn marker and resumes it. Verified
+  collision stops the player at the wall (doesn't clip through) and the
+  round-trip back to Stage 1 leaves normal streaming intact.
+- **2026-07-12 · Fixed arrows still pointing at walls a couple of tiles out.**
+  Two separate bugs in the "does this direction actually stay clear"
+  arrow-facing check (world.js): (1) when NEITHER direction looked clear,
+  the code fell back to a coin flip instead of skipping the arrow, so it
+  could point at a wall on purpose; now it just doesn't place an arrow
+  there. (2) The bigger one: `directionClear()` only checked the
+  deterministic `wallSouth()`/`wallWest()` functions, but buildChunk's
+  minimum-density "top-up" pass (added earlier so sparse chunks don't feel
+  empty) adds extra walls afterward using a per-chunk shuffled RNG that
+  those deterministic functions know nothing about — so an arrow's
+  clearance check could pass while a top-up wall sat right in the "clear"
+  path. Fixed by deferring all arrow placement in a chunk until after its
+  top-up pass finishes, then checking the now-complete `wallSouthCells`/
+  `wallWestCells` sets directly for any cell within the current chunk
+  (falling back to the old deterministic check only for cells that spill
+  into a neighbouring, possibly-not-yet-built chunk — a narrower, harder to
+  fully close gap). Verified with a Playwright script that, for every
+  discovered arrow, independently re-derives its pointing direction and
+  walks 3 cells out checking the real collision system (sampled slightly
+  off dead-centre so an incidental pillar — which doesn't fully block a
+  4.2m-wide row — doesn't read as a false violation): 0 wall violations
+  across 43 arrows over 5 seeds, and arrows still turn up plentifully (not
+  over-suppressed) across normal play.
+- **2026-07-12 · Sourced 5 more CC0 models for remaining procedural props.**
+  Searched Poly Haven for real models of the last "basic" primitive-shaped
+  decorations: `lantern` (camp), `oil-can` (camp supply items, alongside the
+  existing crate/box models), `toy-duck`/`toy-baseball` (mixed into the toys
+  theme's scatter, a third of the time, alongside the plain block/ball/puck
+  shapes), and `picture-frame` (festival wall decor). Added a `wallMount`
+  registry flag + matching `objects.js` normalize() path for the picture
+  frame specifically — it's meant to hang, so it gets centred on Y instead of
+  rested on the floor like every other prop, and `rooms.js` gained a
+  `mountModel()` helper (parallel to the existing box-based `mountBox()`)
+  that rotates the model to face outward from whichever wall it's on, reusing
+  the same facing-math as the wall arrows. Verified visually (all 5 render
+  right-side-up, correctly placed, the picture frame facing outward not
+  backward) — no automated collider verification needed since wall decor in
+  this game has always been cosmetic-only. Couldn't find a CC0 backpack or
+  sleeping bag/bedroll on Poly Haven, so the camp theme's bedroll and
+  backpack stay procedural boxes; confetti and bunting flags also stay
+  procedural (see the 2026-07-12 streamers-removed entry below) since
+  they're inherently small/abstract, not standing in for one specific
+  real-world object the way the others were.
+- **2026-07-12 · Fixed wall arrows going invisible after their chunk streamed
+  out and back in.** `maybeAddArrow` (world.js) used to gate the ENTIRE
+  function — including creating the decal mesh — behind `world._arrowKeys`,
+  a set meant only to stop the "teleport to arrow" target list
+  (`world.arrows`) from getting duplicate entries when a chunk re-streams.
+  Since `disposeChunk` tears down a chunk's whole group (including its arrow
+  mesh) when the player wanders away, and the key stayed marked "seen"
+  forever, revisiting a known arrow later rebuilt its wall but skipped
+  recreating the decal — a bare wall with nothing to look at, which is what
+  "teleport to arrow barely works" turned out to mean. Root-caused via a
+  Raycaster dev hook that showed the same arrow record hitting its decal mesh
+  on first visit and only the wall behind it on a later revisit. Fix: the
+  decal is now rebuilt unconditionally every time the wall segment's chunk
+  builds; only the one-time push to `world.arrows` stays deduped by key.
+  Verified 40/40 raycast hits on the decal across teleport-to-arrow calls
+  (previously ~50% wall-only).
+- **2026-07-12 · Replaced procedural box tables/crates/chairs/shelf with
+  registered glTF models.** `rooms.js`'s tables (festival + party themes),
+  chairs, storage crates/barrels, the toy chest, and the standing shelf now
+  place the actual `table`/`school-chair`/`wooden-crate`/`cardboard-box`/
+  `barrel`/`shelf` models instead of bare `BoxGeometry`/`CylinderGeometry`.
+  Added a new CC0 Poly Haven table (`WoodenTable_01`, same author as the
+  existing school chair) since no table model existed yet. Every call site
+  keeps a procedural-box fallback for the rare case a model hasn't loaded, so
+  a slow/broken fetch still can't break room generation. Also split
+  `objects.js`'s `randomObject()` to a `category: "research"` subset (the STL
+  "leftover equipment" props) and added `getObject(id)` for placing a specific
+  piece of furniture by id — before this, the merge that added glTF support
+  had accidentally put furniture models into the same random pool as research
+  clutter, so a school chair or shelf could turn up scattered as "someone left
+  this here" junk in any theme. Small dressing (tabletop trinkets, dropped
+  festival items, camp supplies, scattered toys) stays procedural — no
+  matching CC0 model registered for those, and they're too small/varied to be
+  worth sourcing one.
 - **2026-07-12 · Object registry supports glTF too; props sourced from CC0
   libraries.** Extended `src/objects.js` with a `GLTFLoader` path alongside STL
   (registry entries take `format: "gltf"`); both normalise to a cloneable

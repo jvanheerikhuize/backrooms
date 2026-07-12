@@ -344,7 +344,6 @@ body {
 }
 
 #cutscene-hud .cc-tracking {
-  animation: rec-blink 0.5s steps(1) infinite;
   opacity: 0.7;
 }
 
