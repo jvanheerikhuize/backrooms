@@ -31,10 +31,16 @@ it locally lets you (or the person you're helping) actually see a change.
    | W A S D / arrows | Move |
    | Mouse | Look |
    | Shift | Run |
+   | F | Inventory |
    | M | Mute / unmute |
    | C | Trigger a found-footage cut-scene |
    | V | Reduce camera motion |
+   | `[` / `]` | Ramp cut-scene distortion calm ↔ heavy |
+   | `` ` `` (tilde) | Open the developer console — type `help` |
    | Esc | Release the pointer |
+
+   Every dev action (teleports, seeds, the Prop Room, spawning NPCs) is a console
+   command now, not a key. See `dev-command`.
 
 4. **See it yourself with Playwright.** This project has `playwright`
    installed as a dev dependency specifically so Claude can visually verify
@@ -61,8 +67,10 @@ it locally lets you (or the person you're helping) actually see a change.
    gameplay (not just the title screen), click isn't available headlessly —
    drive it via `page.mouse.click()` on the canvas, `page.keyboard.down("KeyW")`
    etc., and pointer-lock movement won't fire `mousemove` deltas the same way
-   a real user does, so treat this as good for visual/error checks and dev-menu
-   testing (T, F, teleports), not precise movement verification.
+   a real user does, so treat this as good for visual and error checks, not
+   precise movement verification. To actually *assert* on game state, use the
+   `window.__dbg*` hooks — see the `verify-change` skill, which covers this loop
+   in full.
 
 5. **Stop the server** when done:
    ```bash

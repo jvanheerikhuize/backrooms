@@ -1,6 +1,6 @@
 # Knowledge graph
 
-> Generated from `knowledge.json` by `npm run kg -- render` — do not hand-edit. 47 nodes · 67 edges · updated 2026-07-12.
+> Generated from `knowledge.json` by `npm run kg -- render` — do not hand-edit. 49 nodes · 71 edges · updated 2026-07-12.
 
 Lightweight knowledge graph for the Backrooms game. Nodes are the things worth remembering (subsystems, concepts, decisions, conventions, mechanics, people, sources); edges are typed relations. Query it with `npm run kg -- <cmd>` (see context/kg.mjs) instead of reading the full prose docs. The graph indexes goal.md (design) and decisions.md (why) — drill into those via a node's `ref`.
 
@@ -56,11 +56,16 @@ Refresh README / decisions.md (and goal.md on direction shifts) before opening a
 
 authored_by → **Jerry**
 
+### Verify in the browser `conv-verify-in-browser` — context/decisions.md
+No tests, linter, or CI — a change is verified by driving the running game with Playwright and the window.__dbg* hooks, and looking at the screenshot.
+
+constrains → **Docs before PR** · authored_by → **Jerry**
+
 
 ## subsystems
 
 ### Entry / orchestrator `sub-main` — src/main.js
-Scene, render loop, dev menu, teleports; preloads the asset registries before world generation.
+Scene, render loop, place switching (goTo), entity spawning, and the dev-console command registrations; preloads the asset registries before world generation.
 
 uses → **Places** · uses → **Entity layer** · uses → **NPC presence** · uses → **World streaming** · uses → **Player controller** · uses → **Cut-scene layer** · uses → **Ambience** · uses → **Prop Room (dev)** · uses → **Stage 2 (dev)**
 
@@ -109,12 +114,12 @@ VHS / grain / chromatic-aberration EffectComposer pass.
 Procedural brown-noise room tone + fluorescent hum coupled to the light flicker.
 
 ### Prop Room (dev) `sub-proproom` — src/proproom.js
-Dev test chamber laying out one of every registered prop; dev-menu key 5.
+Dev test chamber laying out one of every registered prop and SVG sign; entered with the `proproom` console command.
 
 uses → **Model registry** · uses → **SVG prop registry** · parallels → **Stage 2 (dev)**
 
 ### Stage 2 (dev) `sub-stage2` — src/stage2.js
-Separate dev room off the world grid (fixed far coordinate); dev-menu key 4.
+Separate dev stage in its own THREE.Scene (not a far world coordinate — that jittered); entered with the `stage2` console command.
 
 authored_by → **Flynn**
 
@@ -239,3 +244,8 @@ establishes → **Single-player now; NPCs mock multiplayer**
 Shader/post-processing-heavy roadmap; three.js gives EffectComposer + instancing.
 
 establishes → **Post-processing**
+
+### Skill library for the repo workflows `dec-skill-library` — 2026-07-12 · context/decisions.md
+Six Claude Code skills covering the fiddly repo workflows (content, entities, places, console commands, verification, close-out).
+
+establishes → **Verify in the browser** · authored_by → **Jerry**

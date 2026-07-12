@@ -120,8 +120,18 @@ Props are asset files, so you can grow the world without touching game logic:
 - **A surface texture** ("leaked" wall/floor/ceiling) — drop a seamless image
   under `public/textures/` and add an entry to `src/textures.js`.
 
+Signs and textures are placed automatically. **A 3D model is not** — registering it
+only makes it *loadable*. It appears in the world only if it's tagged
+`category: "research"` (which adds it to the random-clutter pool) or `src/rooms.js`
+asks for it by id. Miss both and it loads silently and is never placed.
+
 Keep bundled assets **CC0 / public-domain** (Poly Haven is a good source). The
-`NOTICE.md` in each folder explains the format and lists sources.
+`NOTICE.md` in each folder explains the format and lists sources — add your asset
+to its table.
+
+Working with Claude? The **`add-content`** skill walks the whole thing, and
+[`.claude/skills/`](./.claude/skills/) lists the rest (new creatures, new levels,
+new console commands, verifying, and closing out).
 
 ## For contributors
 
