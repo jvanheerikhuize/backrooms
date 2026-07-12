@@ -112,7 +112,8 @@ const VHSShader = {
 
 export function createComposer(renderer, scene, camera) {
   const composer = new EffectComposer(renderer);
-  composer.addPass(new RenderPass(scene, camera));
+  const renderPass = new RenderPass(scene, camera);
+  composer.addPass(renderPass);
 
   // Bloom sells the cheap over-exposed camcorder lens on the fluorescent
   // panels. Strength is driven to 0 during gameplay and ramped up in cut-scenes.
@@ -149,9 +150,19 @@ export function createComposer(renderer, scene, camera) {
     setDropout: (amount) => {
       u.uDropout.value = amount;
     },
+    // Vignette strength (defaults to 1.15). Stage 2 turns this down to 0 so
+    // its much bigger area doesn't read as darkened toward the edges.
+    setVignette: (amount) => {
+      u.uVignette.value = amount;
+    },
     setSize: (w, h) => {
       composer.setSize(w, h);
       bloom.setSize(w, h);
+    },
+    // Swap which scene the render pass draws — used to switch between the
+    // main game, Stage 2, and the Prop Room, each its own separate scene.
+    setScene: (newScene) => {
+      renderPass.scene = newScene;
     },
   };
 }

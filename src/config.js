@@ -62,6 +62,7 @@ export const CONFIG = {
     sizeMin: 9, // metres — room footprint range
     sizeMax: 15,
     entranceGap: 1.8, // metres — doorway width for the "gap" enclosure style
+    minProps: 7, // floor props (table/chairs/crates/etc, not walls) a room tops up to via extra research clutter
   },
 
   // Black directional wall arrows — a very rare bit of set-dressing. Rolled

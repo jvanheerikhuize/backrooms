@@ -443,7 +443,15 @@ export class World {
     // the centred window here would silently miss the back half of the
     // chunk's own cells, letting grid walls/pillars slip into a room's
     // escape corridor undetected.
-    const exclusionRooms = roomsAffecting(originX, originX + span, originZ, originZ + span);
+    //
+    // The south/west edge is widened by another half a cell beyond that: a
+    // south/west wall's own position (ez/ex below) sits cellSize/2 BEFORE
+    // its cell's centre (wx/wz), so the wall for this chunk's very first
+    // column/row physically renders up to half a cell outside [originX,
+    // originX+span) — outside the window this would otherwise query. Missing
+    // that sliver let a room whose edge fell inside it go undetected, letting
+    // that wall/pillar generate right through the room undetected.
+    const exclusionRooms = roomsAffecting(originX - cellSize / 2, originX + span, originZ - cellSize / 2, originZ + span);
 
     const floor = new THREE.Mesh(floorGeo, this.materials.carpet);
     floor.rotation.x = -Math.PI / 2;
@@ -549,7 +557,6 @@ export class World {
         const profile = profileFor(zx, zy);
         if (profile.corridor || profile.encounter) continue;
         const { wx, wz } = cellCenter(gx, gy);
-        if (pointInsideAnyRoom(exclusionRooms, wx, wz, cellSize)) continue;
         const key = gx + "," + gy;
 
         if (topupRng() < TOPUP_WALL_CHANCE) {
@@ -557,6 +564,12 @@ export class World {
           if (south) {
             if (wallSouthCells.has(key)) continue;
             const ez = wz - cellSize / 2;
+            // Excludes on the wall's OWN position (ez), not the cell centre —
+            // a south wall sits half a cell away from wx,wz, so checking the
+            // cell centre here could pass while the wall itself still lands
+            // inside a nearby room (see pointInsideAnyRoom's cellSize pad,
+            // sized to clear the wall's position, not an offset cell centre).
+            if (pointInsideAnyRoom(exclusionRooms, wx, ez, cellSize)) continue;
             m.makeTranslation(wx, wallHeight / 2, ez);
             wallXMatrices.push(m.clone());
             wallSouthCells.add(key);
@@ -567,6 +580,9 @@ export class World {
           } else {
             if (wallWestCells.has(key)) continue;
             const ex = wx - cellSize / 2;
+            // Same fix as the south-wall branch above, for the west wall's
+            // own (offset) position.
+            if (pointInsideAnyRoom(exclusionRooms, ex, wz, cellSize)) continue;
             m.makeTranslation(ex, wallHeight / 2, wz);
             wallZMatrices.push(m.clone());
             wallWestCells.add(key);
@@ -577,6 +593,7 @@ export class World {
           }
         } else {
           if (pillarCells.has(key)) continue;
+          if (pointInsideAnyRoom(exclusionRooms, wx, wz, cellSize)) continue;
           m.makeTranslation(wx, wallHeight / 2, wz);
           pillarMatrices.push(m.clone());
           pillarCells.add(key);

@@ -92,20 +92,34 @@ function updateLights(px, pz, intensity) {
 const materials = createMaterials();
 const world = new World(scene, materials);
 const player = new Player(camera, canvas);
-scene.add(player.object);
+// Not parented to any scene: the camera has no children, so leaving it
+// unparented lets the renderer auto-update its matrixWorld regardless of
+// which scene (main/Stage 2/Prop Room) is actually being rendered this frame
+// — parenting it to one scene would leave it stale while another renders.
 const fx = createComposer(renderer, scene, camera);
 
-// Stage 2 — a separate, plain placeholder room, reachable only from the dev
-// menu (never by walking there — see stage2.js for why). Built once and
-// added straight to the main scene rather than through World's chunk
-// streaming, since it isn't part of the infinite procedural maze at all.
+// Stage 2 and the Prop Room each live in their OWN THREE.Scene — a genuinely
+// separate "dimension", not just a room parked far away in the main scene's
+// coordinate space (the old approach; see stage2.js/proproom.js). Reachable
+// only via the dev menu, which swaps the renderer over to the relevant scene
+// and swaps player collision to that scene's own fixed collider set.
+const stage2Scene = new THREE.Scene();
+// Neutral dark grey, not the main game's warm fog colour — keeps the tinting
+// consistent with Stage 2's own neutral-white lighting (see stage2.js), so
+// the concrete walls read as grey instead of washing back toward yellow.
+stage2Scene.background = new THREE.Color(0x0e0e0e);
+// No fog here (unlike the main game) — Stage 2 is meant to be fully lit
+// across its whole area rather than fading to darkness at a distance.
 const stage2 = buildStage2Room(materials);
-scene.add(stage2.group);
+stage2Scene.add(stage2.group);
 let inStage2 = false;
 
 // Prop Room — dev-only test chamber holding one of every registered prop.
 // Built lazily on first teleport (see togglePropRoom) so the model/SVG caches
 // are already warm.
+const propRoomScene = new THREE.Scene();
+propRoomScene.background = new THREE.Color(CONFIG.colors.fog);
+propRoomScene.fog = new THREE.Fog(CONFIG.colors.fog, CONFIG.fogNear, CONFIG.fogFar);
 let propRoom = null;
 let inPropRoom = false;
 
@@ -241,13 +255,17 @@ function resetSeed() {
 window.__dbgResetSeed = resetSeed;
 
 // Dev menu option 4 — jump to Stage 2, or back to Stage 1 if already there.
-// Stage 2 isn't part of World's chunk streaming (see stage2.js), so entering
-// it just parks the camera at its fixed coordinate and switches player
-// collision over to its own small fixed collider set; leaving resumes normal
-// world streaming from the spawn marker.
+// Stage 2 lives in its own scene (see the stage2Scene setup above), so
+// entering it swaps the renderer over to that scene, parks the camera at its
+// local origin, switches player collision to its own small fixed collider
+// set, and drops the ambient "static" bed (see stage2.js/audio.js); leaving
+// reverses all of that and resumes normal world streaming from the spawn marker.
 function toggleStage2() {
   inStage2 = !inStage2;
   if (inStage2) inPropRoom = false; // the two dev rooms are mutually exclusive
+  fx.setScene(inStage2 ? stage2Scene : scene);
+  fx.setVignette(inStage2 ? 0 : 1.15);
+  ambience[inStage2 ? "muteBed" : "unmuteBed"]();
   const pos = inStage2 ? STAGE2_POS : SPAWN_POS;
   camera.position.set(pos.wx, CONFIG.eyeHeight, pos.wz);
   player.yaw = 0;
@@ -259,14 +277,16 @@ function toggleStage2() {
 window.__dbgToggleStage2 = toggleStage2;
 
 // Dev menu option 5 — jump to the Prop Room (every registered prop laid out for
-// inspection), or back to spawn if already there. Built on first entry.
+// inspection), or back to spawn if already there. Built on first entry, into
+// its own scene (see the propRoomScene setup above).
 function togglePropRoom() {
   if (!propRoom) {
     propRoom = buildPropRoom(materials);
-    scene.add(propRoom.group);
+    propRoomScene.add(propRoom.group);
   }
   inPropRoom = !inPropRoom;
   if (inPropRoom) inStage2 = false;
+  fx.setScene(inPropRoom ? propRoomScene : scene);
   player.yaw = 0;
   player.pitch = 0;
   camera.rotation.set(0, 0, 0);

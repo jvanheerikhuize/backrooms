@@ -19,6 +19,17 @@ const RS = CONFIG.specialRooms;
 const SALT_SHAPE = 0x7001;
 const SALT_PROPS = 0x8001;
 
+// Materials for the festival room's table-top cake slice (see addCake) —
+// simple enough to build from primitives rather than pull in a real asset,
+// so built once here and shared across every clone like the rest of this
+// file's procedural shapes.
+// DoubleSide guards against winding-order surprises on the hand-built wedge
+// shape below — cheap for a prop this small.
+const CAKE_MAT = new THREE.MeshStandardMaterial({ color: 0xe8607f, roughness: 0.75, side: THREE.DoubleSide }); // strawberry-pink sponge
+const CREAM_MAT = new THREE.MeshStandardMaterial({ color: 0xfff5f0, roughness: 0.55, side: THREE.DoubleSide }); // cream layer on top
+const PLATE_MAT = new THREE.MeshStandardMaterial({ color: 0xfffaf0, roughness: 0.5 });
+const CHERRY_MAT = new THREE.MeshStandardMaterial({ color: 0x8a0f1a, roughness: 0.3, metalness: 0.05 });
+
 function rngForRegion(salt, rx, ry) {
   return mulberry32(hashCell(CONFIG.seed ^ salt, rx, ry));
 }
@@ -386,9 +397,67 @@ function addResearchProp(group, colliders, rng, room) {
   return true;
 }
 
-// ── Festival: a table, a couple of chairs, and worn decorations. ──────────
+// A table-top cake SLICE: a paper plate, a wedge of strawberry sponge with a
+// cream layer on top, and a cherry — procedural primitives (like the rest of
+// this file's shapes), not a real asset, since a cake slice is simple enough
+// not to need one. Purely decorative — the table underneath already has the
+// floor collider, so this needs none.
+const SLICE_ANGLE = Math.PI / 3; // 60° wedge — reads clearly as a cut slice, not a whole cake
+const SLICE_HALF = SLICE_ANGLE / 2;
+// Exact centroid distance of a circular sector from its point, as a fraction
+// of its radius: (2/3) * sin(half-angle)/half-angle.
+const SLICE_CENTROID_FRAC = (2 / 3) * (Math.sin(SLICE_HALF) / SLICE_HALF);
+
+// A pie-slice wedge, built from a 2D Shape and extruded — NOT a partial
+// CylinderGeometry, which only builds the curved crust wall plus top/bottom
+// caps and leaves the two flat "cut" faces open (three.js never closes those
+// for a partial theta sweep). Extruding a Shape gets the cut faces for free
+// as part of its side wall. Recentred so its centroid — not its point — sits
+// at the mesh's local origin, since callers (including the cherry) want to
+// position it like any other prop.
+function wedgeGeometry(radius, height) {
+  const shape = new THREE.Shape();
+  shape.moveTo(0, 0);
+  shape.absarc(0, 0, radius, -SLICE_HALF, SLICE_HALF, false);
+  shape.lineTo(0, 0);
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: false, curveSegments: 16 });
+  geo.rotateX(-Math.PI / 2); // shape's XY plane -> world XZ; the extrusion (Z) becomes up (Y)
+  geo.translate(-radius * SLICE_CENTROID_FRAC, -height / 2, 0); // centroid to local origin; centre the height too
+  geo.userData.disposable = true; // per-room geometry, not shared — see World.disposeChunk
+  return geo;
+}
+
+function addCake(group, tx, tz, tableH) {
+  const plateGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.012, 24);
+  plateGeo.userData.disposable = true;
+  const plate = new THREE.Mesh(plateGeo, PLATE_MAT);
+  plate.position.set(tx, tableH + 0.006, tz);
+  group.add(plate);
+
+  const radius = 0.135;
+  const spongeH = 0.065;
+  const creamH = 0.02;
+
+  const sponge = new THREE.Mesh(wedgeGeometry(radius, spongeH), CAKE_MAT);
+  sponge.position.set(tx, tableH + 0.012 + spongeH / 2, tz);
+  group.add(sponge);
+
+  const cream = new THREE.Mesh(wedgeGeometry(radius * 0.96, creamH), CREAM_MAT);
+  cream.position.set(tx, tableH + 0.012 + spongeH + creamH / 2, tz);
+  group.add(cream);
+
+  const cherryGeo = new THREE.SphereGeometry(0.018, 12, 10);
+  cherryGeo.userData.disposable = true;
+  const cherry = new THREE.Mesh(cherryGeo, CHERRY_MAT);
+  cherry.position.set(tx, tableH + 0.012 + spongeH + creamH + 0.014, tz);
+  group.add(cherry);
+}
+
+// ── Festival: a table (with a cake on top), a couple of chairs, and worn
+// decorations. ─────────────────────────────────────────────────────────────
 function addFestivalTheme(group, colliders, rng, room) {
   const table = addTable(group, colliders, rng, room);
+  addCake(group, table.tx, table.tz, table.tableH);
 
   const chairCount = 1 + Math.floor(rng() * 2); // 1-2 chairs
   for (let i = 0; i < chairCount; i++) {
@@ -450,8 +519,8 @@ function addCampTheme(group, colliders, rng, room) {
 }
 
 // ── Storage: crates and barrels, some stacked, sometimes a standing shelf. ─
-function addStorageTheme(group, colliders, rng, room) {
-  if (rng() < 0.45) addFloorShelf(group, colliders, rng, room);
+function addStorageTheme(group, colliders, rng, room, wallCount) {
+  if (rng() < 0.45) addFloorShelf(group, colliders, rng, room, wallCount);
   if (rng() < 0.35) addResearchProp(group, colliders, rng, room);
 
   const crateCount = 3 + Math.floor(rng() * 4); // 3-6 crates
@@ -491,28 +560,58 @@ function addStorageTheme(group, colliders, rng, room) {
   }
 }
 
-// ── Standing shelf/rack: the registered Shelf_01 model. Only ever rotated in
-// 90° steps (like the table) so the footprint collider — which doesn't know
-// about rotation — stays accurate for its elongated shape. Does nothing if
-// the model hasn't loaded or the room's too crowded for it, rather than
-// falling back to a primitive or overlapping something already placed.
-function addFloorShelf(group, colliders, rng, room) {
+// ── Standing shelf/rack: the registered Shelf_01 model. Always placed flush
+// against one of the room's solid walls (never floating out in the open) —
+// tries every solid wall (shuffled) and a few positions along each, same
+// "skip rather than overlap" contract as the rest of this generator. Rotates
+// the model's local Z (its depth axis, same wall-mount convention as
+// mountModel below) onto the wall's outward normal, so it only ever turns in
+// 90° steps — like the table, that keeps the footprint collider (which
+// doesn't know about rotation) accurate.
+//
+// `wallCount` is how many entries at the front of `colliders` are the room's
+// OWN walls (added by buildWalls before any prop runs) — sitting flush
+// against a wall means the shelf's collider necessarily falls inside that
+// wall collider's own player-radius padding, so the overlap check below
+// only looks at colliders placed AFTER the walls (other props), not the
+// walls themselves.
+function addFloorShelf(group, colliders, rng, room, wallCount) {
   const obj = getObject("shelf");
   if (!obj) return;
-  const rotated = rng() < 0.5;
-  const halfX = rotated ? obj.halfZ : obj.halfX;
-  const halfZ = rotated ? obj.halfX : obj.halfZ;
-  const spot = randomSpot(rng, room, Math.max(halfX, halfZ) + 0.5, colliders);
-  if (!spot) return;
-  const { x, z } = spot;
+  const otherProps = colliders.slice(wallCount);
+  const sides = ["n", "s", "e", "w"].filter((s) => s !== room.openSide);
+  for (let i = sides.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [sides[i], sides[j]] = [sides[j], sides[i]];
+  }
+  const alongHalf = obj.halfX; // width runs along the wall
+  const outHalf = obj.halfZ; // depth sticks out from the wall
+  const clearance = 0.3;
 
-  const mesh = obj.object3D.clone();
-  mesh.position.set(x, 0, z);
-  mesh.rotation.y = rotated ? Math.PI / 2 : 0;
-  group.add(mesh);
+  for (const side of sides) {
+    const wg = wallGeometry(room, side);
+    const maxAlong = wg.length / 2 - alongHalf - clearance;
+    if (maxAlong <= 0) continue;
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const along = (rng() * 2 - 1) * maxAlong;
+      const off = CONFIG.wallThickness / 2 + outHalf + 0.02;
+      const x = wg.cx + wg.tx * along + wg.nx * off;
+      const z = wg.cz + wg.tz * along + wg.nz * off;
+      const clear = keepClearOfDoor(room, x, z, Math.max(alongHalf, outHalf));
+      if (clear.x !== x || clear.z !== z) continue; // door-avoidance would shove it off the wall — try another spot instead
+      const worldHalfX = wg.nx === 0 ? alongHalf : outHalf;
+      const worldHalfZ = wg.nx === 0 ? outHalf : alongHalf;
+      if (overlapsAny(x, z, worldHalfX, worldHalfZ, otherProps)) continue;
 
-  const px = CONFIG.playerRadius;
-  colliders.push({ minX: x - halfX - px, maxX: x + halfX + px, minZ: z - halfZ - px, maxZ: z + halfZ + px });
+      const mesh = obj.object3D.clone();
+      mesh.position.set(x, 0, z);
+      mesh.rotation.y = Math.atan2(wg.nx, wg.nz);
+      group.add(mesh);
+      const px = CONFIG.playerRadius;
+      colliders.push({ minX: x - worldHalfX - px, maxX: x + worldHalfX + px, minZ: z - worldHalfZ - px, maxZ: z + worldHalfZ + px });
+      return;
+    }
+  }
 }
 
 // Streamers across the ceiling were tried here and pulled back out — a
@@ -559,10 +658,32 @@ function wallGeometry(room, side) {
   }
 }
 
-// A random solid wall (never the doorway side).
-function pickWallSide(rng, room) {
+// Claim a spot for a cosmetic wall-mounted prop (picture frame, SVG sign) on
+// a random solid wall, rejecting spots that overlap one already claimed —
+// `placed` is a per-room ledger shared across every call so, e.g., the
+// picture frame and a sign can't land on/through each other even though
+// they're placed by separate, independently-rolled functions. Tries several
+// sides (shuffled) and a few positions per side before giving up; returns
+// null (skip placing this prop) rather than accept an overlapping spot.
+function claimWallSpot(rng, room, placed, halfWidth) {
   const sides = ["n", "s", "e", "w"].filter((s) => s !== room.openSide);
-  return sides[Math.floor(rng() * sides.length)];
+  for (let i = sides.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [sides[i], sides[j]] = [sides[j], sides[i]];
+  }
+  for (const side of sides) {
+    const length = wallGeometry(room, side).length;
+    const maxAlong = length / 2 - halfWidth - 0.2;
+    if (maxAlong <= 0) continue;
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const along = (rng() * 2 - 1) * maxAlong;
+      const overlaps = placed.some((p) => p.side === side && Math.abs(p.along - along) < p.halfWidth + halfWidth + 0.3);
+      if (overlaps) continue;
+      placed.push({ side, along, halfWidth });
+      return { side, along };
+    }
+  }
+  return null;
 }
 
 // Mount a wall-decor MODEL flush against a wall's inner face. The registered
@@ -585,12 +706,14 @@ function mountModel(group, room, side, id, along, heightY) {
   return true;
 }
 
-function addWallDecor(group, rng, room) {
+function addWallDecor(group, rng, room, placed) {
   if (rng() >= 0.45) return; // just under half of rooms get one
-  const side = pickWallSide(rng, room);
-  const along = (rng() * 2 - 1) * Math.max(wallGeometry(room, side).length / 2 - 1.2, 0.2);
+  const obj = getObject("picture-frame");
+  const halfWidth = obj ? obj.halfX : 0.4;
+  const spot = claimWallSpot(rng, room, placed, halfWidth);
+  if (!spot) return;
   // Asset-only: the wall-mounted picture-frame model — no procedural decor.
-  mountModel(group, room, side, "picture-frame", along, 1.5 + rng() * 0.5);
+  mountModel(group, room, spot.side, "picture-frame", spot.along, 1.5 + rng() * 0.5);
 }
 
 // Build one room's geometry + colliders. `materials.wall` is reused for the
@@ -599,17 +722,18 @@ function addWallDecor(group, rng, room) {
 // Mount a flat SVG 2D prop (sign/arrow/warning) flush on a random solid wall,
 // facing into the room. Purely decorative — no collider, like the other wall
 // decor. Skips silently if the SVG cache isn't ready (never breaks generation).
-function addWallSign(group, rng, room) {
+function addWallSign(group, rng, room, placed) {
   if (rng() >= 0.5) return; // about half of rooms get a sign
   const tpl = randomSvgProp(rng);
   if (!tpl) return;
-  const side = pickWallSide(rng, room);
-  const wg = wallGeometry(room, side);
-  const along = (rng() * 2 - 1) * Math.max(wg.length / 2 - Math.max(tpl.halfW, 0.4) - 0.3, 0.1);
+  const halfWidth = Math.max(tpl.halfW, 0.4);
+  const spot = claimWallSpot(rng, room, placed, halfWidth);
+  if (!spot) return;
+  const wg = wallGeometry(room, spot.side);
   const y = 1.5 + rng() * 0.8;
   const off = CONFIG.wallThickness / 2 + 0.03;
   const sign = tpl.object3D.clone(); // shared geometry/material — never mark disposable
-  sign.position.set(wg.cx + wg.tx * along + wg.nx * off, y, wg.cz + wg.tz * along + wg.nz * off);
+  sign.position.set(wg.cx + wg.tx * spot.along + wg.nx * off, y, wg.cz + wg.tz * spot.along + wg.nz * off);
   sign.rotation.y = Math.atan2(wg.nx, wg.nz); // face the wall's inward normal
   group.add(sign);
 }
@@ -639,17 +763,30 @@ export function buildRoomGroup(room, materials) {
   const group = new THREE.Group();
   const colliders = [];
   buildWalls(group, colliders, materials.wall, room);
+  const wallCount = colliders.length; // floor props (below) are whatever's added past this point
 
   const propRng = rngForRegion(SALT_PROPS, room.rx, room.ry);
   if (room.theme === "festival") addFestivalTheme(group, colliders, propRng, room);
   else if (room.theme === "toys") addToysTheme(group, colliders, propRng, room);
   else if (room.theme === "camp") addCampTheme(group, colliders, propRng, room);
   else if (room.theme === "party") addPartyTheme(group, colliders, propRng, room);
-  else addStorageTheme(group, colliders, propRng, room);
+  else addStorageTheme(group, colliders, propRng, room, wallCount);
 
   addExtraFurniture(group, colliders, propRng, room);
-  addWallDecor(group, propRng, room);
-  addWallSign(group, propRng, room);
+
+  // Top up sparse rolls with extra research clutter so every room reads as
+  // lived-in rather than just whatever bare minimum its theme happened to
+  // roll — a real floor, not a per-theme guess, since themes vary widely in
+  // how many props they place on their own.
+  let guard = 0;
+  while (colliders.length - wallCount < RS.minProps && guard < RS.minProps * 4) {
+    guard++;
+    addResearchProp(group, colliders, propRng, room);
+  }
+
+  const wallProps = []; // shared ledger so the picture frame and a sign can't claim overlapping wall spans
+  addWallDecor(group, propRng, room, wallProps);
+  addWallSign(group, propRng, room, wallProps);
 
   return { group, colliders };
 }
