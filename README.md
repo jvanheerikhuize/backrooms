@@ -62,7 +62,7 @@ npm run preview    # serve the production build locally
 | **Mouse** | Look |
 | **Shift** | Run (drains the stamina bar) |
 | **F** | Open / close the inventory |
-| **T** | Open / close the dev menu (teleports + test rooms) |
+| **~** | Open / close the developer console (type `help`) |
 | **C** | Replay the found-footage cut-scene |
 | **V** | Reduce camera motion (accessibility) |
 | **M** | Mute / unmute audio |
@@ -98,10 +98,11 @@ What the game already does today:
   Web Audio.
 - **Found-footage camera** — a cut-scene layer (grain, VHS tracking, chromatic
   aberration, camcorder HUD) used for the opening title screen.
-- **Dev tools** — press **T** for a dev menu: teleport to a random room or a wall
-  arrow, re-roll the world seed, or jump to two off-map test spaces — **Stage 2**
-  (a bare placeholder room) and the **Prop Room** (one of every registered prop
-  laid out for inspection).
+- **Dev console** — press **~** for a developer console: type commands like
+  `room`, `arrow`, `seed`, `tp x z`, `home`, `spawn`, `noclip`, `speed`,
+  `fullbright`, `fog`, `stage2`, `proproom` (`help` lists them all). It replaces
+  the old numbered menu; the off-map test spaces (**Stage 2**, the **Prop Room**)
+  are `stage2` / `proproom`.
 
 Where it goes next is up for grabs — the leak/alteration system, NPCs as local
 presences, new levels, creatures… decide in [goal.md](./context/goal.md).

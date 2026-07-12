@@ -17,6 +17,7 @@ import { buildPropRoom, PROPROOM_POS } from "./proproom.js";
 import { WorldPlace, RoomPlace } from "./place.js";
 import { EntitySet } from "./entity.js";
 import { Npc } from "./npc.js";
+import { DevConsole } from "./console.js";
 
 // Kick the STL model fetches off immediately so they load in parallel with
 // the synchronous setup below; awaited just before the first world.update()
@@ -32,7 +33,6 @@ const staminaEl = document.getElementById("stamina");
 const staminaFill = document.getElementById("stamina-fill");
 const inventoryEl = document.getElementById("inventory");
 const inventoryGrid = inventoryEl ? inventoryEl.querySelector(".inv-grid") : null;
-const devMenuEl = document.getElementById("dev-menu");
 
 // Renderer.
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -403,18 +403,114 @@ function toggleInventory() {
   setInventoryOpen(!inventoryOpen);
 }
 
-// Dev menu (T). Keyboard-driven (1/2/3) rather than clickable — the mouse
-// stays pointer-locked (invisible, pinned to centre) while playing, so
-// there's nothing for a real cursor to click anyway.
-let devMenuOpen = false;
-function setDevMenuOpen(open) {
-  devMenuOpen = open;
-  player.setPaused(open);
-  if (devMenuEl) devMenuEl.classList.toggle("open", open);
-}
-function toggleDevMenu() {
-  setDevMenuOpen(!devMenuOpen);
-}
+// ── Developer console (~) ────────────────────────────────────────────────
+// Replaces the old numbered dev menu: every dev action is a typed command.
+// Opening it pauses the player (so typing can't move you) and the console
+// captures all keys while open (see console.js).
+let noclip = false;
+const baseWalk = CONFIG.walkSpeed;
+const baseRun = CONFIG.runSpeed;
+let savedFog = null;
+let fullbright = false;
+
+const devConsole = new DevConsole({
+  onOpen: () => player.setPaused(true),
+  onClose: () => player.setPaused(false),
+});
+
+devConsole
+  .register("pos", "print position / zone / counts", () => {
+    const p = window.__dbgPos();
+    return `x ${p.x}  z ${p.z}  zone ${p.zone}  chunks ${p.chunks}  lights ${p.litNow}/${p.lights}`;
+  })
+  .register("tp", "teleport to <x> <z>", (a) => {
+    const x = parseFloat(a[0]);
+    const z = parseFloat(a[1]);
+    if (Number.isNaN(x) || Number.isNaN(z)) return "usage: tp <x> <z>";
+    world.update(x, z);
+    const spot = findClearSpot(x, z) ?? { x, z };
+    camera.position.set(spot.x, CONFIG.eyeHeight, spot.z);
+    world.update(spot.x, spot.z);
+    return `→ ${spot.x.toFixed(1)}, ${spot.z.toFixed(1)}`;
+  })
+  .register("home", "teleport back to spawn", () => {
+    camera.position.set(SPAWN_POS.wx, CONFIG.eyeHeight, SPAWN_POS.wz);
+    world.update(SPAWN_POS.wx, SPAWN_POS.wz);
+    return "→ spawn";
+  })
+  .register("room", "teleport to a random special room", () => {
+    const r = teleportToRandomRoom();
+    return r ? `→ ${r.theme}/${r.style} @ ${r.x}, ${r.z}` : "no room found";
+  })
+  .register("arrow", "teleport in front of a wall arrow", () => {
+    const r = teleportToArrow();
+    return r ? `→ ${r.x}, ${r.z}` : "no clear arrow found";
+  })
+  .register("seed", "print seed · `seed <n>` / `seed new` rebuilds", (a) => {
+    if (!a.length) return `seed ${CONFIG.seed}`;
+    const specific = a[0] !== "new";
+    if (specific && Number.isNaN(parseInt(a[0], 10))) return "usage: seed [<n>|new]";
+    world.regenerate(SPAWN_POS.wx, SPAWN_POS.wz, specific ? parseInt(a[0], 10) >>> 0 : undefined);
+    camera.position.set(SPAWN_POS.wx, CONFIG.eyeHeight, SPAWN_POS.wz);
+    player.yaw = 0;
+    player.pitch = 0;
+    camera.rotation.set(0, 0, 0);
+    seedStartElapsed = clock.getElapsedTime();
+    return `seed ${CONFIG.seed} — rebuilt`;
+  })
+  .register("stage2", "toggle Stage 2", () => `stage2 ${toggleStage2().inStage2 ? "on" : "off"}`)
+  .register("proproom", "toggle the Prop Room", () => {
+    const r = togglePropRoom();
+    return `proproom ${r.inPropRoom ? `on (${r.props} props)` : "off"}`;
+  })
+  .register("spawn", "spawn <n> NPC presences near you (default 1)", (a) => {
+    const n = Math.max(1, Math.min(20, parseInt(a[0], 10) || 1));
+    for (let i = 0; i < n; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const r = 4 + Math.random() * 6;
+      const e = new Npc(worldPlace, camera.position.x + Math.cos(ang) * r, camera.position.z + Math.sin(ang) * r);
+      scene.add(e.object3D);
+      entities.add(e);
+    }
+    return `spawned ${n} (total ${entities.list.filter((e) => e instanceof Npc).length})`;
+  })
+  .register("ents", "entity count + nearest presence", () => {
+    const e = window.__dbgEntities();
+    return `entities ${e.count}  nearest ${e.nearest ? e.nearest.dist + "m" : "—"}`;
+  })
+  .register("clearnpc", "remove all NPCs", () => {
+    const npcs = entities.list.filter((e) => e instanceof Npc);
+    for (const e of npcs) {
+      scene.remove(e.object3D);
+      entities.remove(e);
+    }
+    return `removed ${npcs.length}`;
+  })
+  .register("noclip", "toggle walking through walls", () => {
+    noclip = !noclip;
+    return `noclip ${noclip ? "on" : "off"}`;
+  })
+  .register("speed", "movement speed multiplier (`speed` resets)", (a) => {
+    const m = a.length ? parseFloat(a[0]) : 1;
+    if (Number.isNaN(m) || m <= 0) return "usage: speed <multiplier>";
+    CONFIG.walkSpeed = baseWalk * m;
+    CONFIG.runSpeed = baseRun * m;
+    return `speed x${m}`;
+  })
+  .register("fullbright", "toggle flat bright lighting", () => {
+    fullbright = !fullbright;
+    ambient.intensity = fullbright ? 2.6 : 0.45;
+    return `fullbright ${fullbright ? "on" : "off"}`;
+  })
+  .register("fog", "toggle distance fog", () => {
+    if (scene.fog) {
+      savedFog = scene.fog;
+      scene.fog = null;
+      return "fog off";
+    }
+    scene.fog = savedFog;
+    return "fog on";
+  });
 
 // Overlay / pointer-lock wiring. Clicking ends the opening cut-scene and hands
 // off to the clean gameplay view.
@@ -432,7 +528,6 @@ player.controls.addEventListener("unlock", () => {
   ambience.suspend();
   // Esc releases pointer lock — keep panel state in sync.
   if (inventoryOpen) setInventoryOpen(false);
-  if (devMenuOpen) setDevMenuOpen(false);
 });
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) ambience.suspend();
@@ -448,7 +543,7 @@ window.addEventListener("keydown", (e) => {
 
   // Trigger a scripted in-game reveal cut-scene (C) while playing. It takes
   // over the camera, auto-stops, and returns control to the player.
-  if (e.code === "KeyC" && player.isLocked && !cutscene.active && !inventoryOpen && !devMenuOpen) {
+  if (e.code === "KeyC" && player.isLocked && !cutscene.active && !inventoryOpen) {
     cutscene.startReveal();
   }
 
@@ -459,34 +554,11 @@ window.addEventListener("keydown", (e) => {
   }
 
   // Inventory (F).
-  if (e.code === "KeyF" && player.isLocked && !cutscene.active && !devMenuOpen) {
+  if (e.code === "KeyF" && player.isLocked && !cutscene.active) {
     toggleInventory();
   }
 
-  // Dev menu (T): 1 teleport to a random room, 2 teleport to an arrow,
-  // 3 reset the seed, 4 toggle Stage 2. T again (or Esc) closes it without
-  // picking anything.
-  if (e.code === "KeyT" && player.isLocked && !inventoryOpen) {
-    toggleDevMenu();
-  }
-  if (devMenuOpen) {
-    if (e.code === "Digit1") {
-      teleportToRandomRoom();
-      setDevMenuOpen(false);
-    } else if (e.code === "Digit2") {
-      teleportToArrow();
-      setDevMenuOpen(false);
-    } else if (e.code === "Digit3") {
-      resetSeed();
-      setDevMenuOpen(false);
-    } else if (e.code === "Digit4") {
-      toggleStage2();
-      setDevMenuOpen(false);
-    } else if (e.code === "Digit5") {
-      togglePropRoom();
-      setDevMenuOpen(false);
-    }
-  }
+  // (Dev actions live in the tilde console now — see DevConsole above.)
 
   // Test control: ramp cut-scene distortion calm↔heavy with [ and ].
   if (e.code === "BracketRight") fx.setDistortion(fx.getDistortion() + 0.15);
@@ -541,7 +613,7 @@ function animate() {
   if (cutscene.active) {
     cutscene.update(dt, t);
   } else {
-    const colliders = activePlace.collidersNear(camera.position.x, camera.position.z);
+    const colliders = noclip ? [] : activePlace.collidersNear(camera.position.x, camera.position.z);
     player.update(dt, colliders);
     cutscene.update(dt, t); // eases the found-FX back to clean after a cut-scene
   }

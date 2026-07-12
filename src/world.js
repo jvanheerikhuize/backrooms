@@ -380,8 +380,8 @@ export class World {
   // (wx,wz). Clears the zone/corridor memoization caches too, since those
   // are keyed only by zone coords and would otherwise still answer with the
   // old seed's layout.
-  regenerate(wx, wz) {
-    CONFIG.seed = (Math.random() * 0xffffffff) >>> 0;
+  regenerate(wx, wz, seed) {
+    CONFIG.seed = seed !== undefined ? seed >>> 0 : (Math.random() * 0xffffffff) >>> 0;
     _profileCache.clear();
     _corridorCache.clear();
     this.arrows = [];
