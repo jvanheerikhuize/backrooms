@@ -1,0 +1,21 @@
+#!/bin/sh
+# Keep the repo knowledge graph honest on every commit:
+#   1. validate knowledge.json (dangling edges, orphans, unknown relations)
+#   2. regenerate KNOWLEDGE.md and block the commit if it was out of date
+#
+# Enabled automatically by `npm install` (see package.json "prepare", which sets
+# core.hooksPath to .githooks). Zero-dependency — just Node.
+
+[ -f context/knowledge.json ] || exit 0
+
+if ! node context/kg.mjs check; then
+  echo "✗ knowledge graph is invalid — fix knowledge.json (see errors above)."
+  exit 1
+fi
+
+node context/kg.mjs render >/dev/null
+if ! git diff --quiet -- context/KNOWLEDGE.md 2>/dev/null; then
+  echo "✗ context/KNOWLEDGE.md was out of date — regenerated it for you."
+  echo "  run:  git add context/KNOWLEDGE.md   then commit again."
+  exit 1
+fi

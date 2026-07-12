@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "kg": "node context/kg.mjs"
+    "kg": "node context/kg.mjs",
+    "prepare": "git config core.hooksPath .githooks || true"
   },
   "license": "ISC",
   "dependencies": {
