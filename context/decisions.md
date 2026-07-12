@@ -23,6 +23,47 @@ first. One entry per decision: date · what · why.
   commit (`81af172`): `FLYNN.md` still told Flynn to press **T** for a menu that
   no longer exists, and three graph summaries still described it.
 
+- **2026-07-12 · A typed dev console replaces the numbered dev menu.** Dev actions
+  used to be a `T` menu with numbered options; they're now typed commands in a
+  Quake-style console toggled with `~` (`src/console.js`). Why: the menu didn't
+  scale — every new dev action needed a key or a digit, and the useful ones
+  (teleport *here*, set *this* seed, spawn *n*) need **arguments**, which a menu
+  can't take. A console makes a new action one `register(name, help, run)` call
+  and gives `help` for free. It captures keys in the capture phase while open, so
+  typing a command can't also move the player, and `main.js` pauses the player on
+  open. Commands live in `main.js` (closing over world/player/entities), not in
+  `console.js`, which stays game-agnostic.
+
+- **2026-07-12 · The first NPC — a wandering presence (entity step 3).** `src/npc.js`
+  — a dark, slightly-too-tall "Still Life" figure (goal.md §6.4) that drifts near
+  the player. The first code behind both the still-life and shared-lobby concepts:
+  it carries a `signature` for the future presence-driven leak, and it's the first
+  thing `nearestPresence` actually reports. It stays **leashed** to the player (24
+  m) for two reasons: it's the eerie behaviour we want (a thing that lurks near
+  you), and — practically — the world only streams chunks around the player, so a
+  presence that wandered past that radius would have no colliders and would drift
+  through walls.
+
+- **2026-07-12 · The entity layer (step 2).** `src/entity.js` — `Entity` (a thing
+  with `update(dt, ctx)`, optionally a mesh and a home place) and `EntitySet`
+  (per-frame place-scoped update + `nearestPresence`). Deliberately **not an ECS**:
+  the game needs a handful of presences, not a component store, and a tiny base
+  class keeps the seam obvious. Shipped with zero entities on purpose — a runtime
+  no-op — so the plumbing could land and be verified separately from the first NPC.
+  `nearestPresence` is the shared "who's near you" signal that the leak and
+  audio-dread systems are meant to read, rather than each re-deriving proximity.
+
+- **2026-07-12 · A `Place` abstraction replaces the `inStage2`/`inPropRoom` flags
+  (entity step 1).** `src/place.js` — `Place` / `WorldPlace` / `RoomPlace`, each
+  owning its scene, spawn, colliders, vignette, and audio-bed state, with a single
+  `goTo(place)` in `main.js`. Why: two booleans had fanned out into per-frame
+  branches for collision, streaming, *and* render, so "which room am I in?" was
+  answered in three scattered places and a new place meant touching all of them.
+  One `activePlace` means one place to reason about a transition. It also fixed a
+  real bug for free: entering the Prop Room from Stage 2 used to inherit Stage 2's
+  muted/vignette-off state, because nothing applied those uniformly. This is the
+  seam entities plug into — an entity belongs to a place.
+
 - **2026-07-12 · Persistent knowledge graph over the context docs.** Added
   `context/knowledge.json` (typed nodes + typed edges) and a zero-dep query CLI
   `context/kg.mjs` (`npm run kg -- <cmd>`: map / find / show / neighbors / why /
