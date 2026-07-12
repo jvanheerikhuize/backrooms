@@ -1,0 +1,136 @@
+{
+  "meta": {
+    "about": "Lightweight knowledge graph for the Backrooms game. Nodes are the things worth remembering (subsystems, concepts, decisions, conventions, mechanics, people, sources); edges are typed relations. Query it with `npm run kg -- <cmd>` (see context/kg.mjs) instead of reading the full prose docs. The graph indexes goal.md (design) and decisions.md (why) — drill into those via a node's `ref`.",
+    "updated": "2026-07-12",
+    "relations": {
+      "uses": "A depends on / consumes B",
+      "part_of": "A is a component of B",
+      "parallels": "A mirrors B's pattern",
+      "realizes": "A (subsystem/mechanic) makes concept B real",
+      "authored_by": "A was written mainly by person B",
+      "establishes": "decision A introduced B",
+      "constrains": "convention A governs B",
+      "sources_from": "asset subsystem A pulls content from source B"
+    }
+  },
+  "nodes": [
+    { "id": "flynn", "type": "person", "name": "Flynn", "summary": "Jerry's son (14); owns game direction and authors features. Commits under Jerry's git identity — credit him explicitly.", "tags": ["team"] },
+    { "id": "jerry", "type": "person", "name": "Jerry", "summary": "Creator; sets high-level direction, reviews and merges PRs.", "tags": ["team"] },
+
+    { "id": "conv-branch-pr", "type": "convention", "name": "Feature-branch → PR", "summary": "Every change on its own branch → PR; never commit to main.", "ref": "context/decisions.md" },
+    { "id": "conv-cc0", "type": "convention", "name": "CC0-only assets", "summary": "Bundled assets must be CC0 / public-domain; verify per file (print libraries mix licenses).", "ref": "context/decisions.md" },
+    { "id": "conv-asset-only-props", "type": "convention", "name": "Asset-only room props", "summary": "Room props come only from the model/SVG registries — no procedural box/cylinder stand-ins.", "ref": "context/decisions.md" },
+    { "id": "conv-procedural-base", "type": "convention", "name": "Procedural base, no asset files", "summary": "Base world (canvas textures, Web-Audio sound) is generated at runtime; the asset registries are documented exceptions.", "ref": "context/decisions.md" },
+    { "id": "conv-single-player", "type": "convention", "name": "Single-player now; NPCs mock multiplayer", "summary": "No networking yet; presence mechanics built to swap NPC → networked player with no rework.", "ref": "context/goal.md" },
+    { "id": "conv-docs-before-pr", "type": "convention", "name": "Docs before PR", "summary": "Refresh README / decisions.md (and goal.md on direction shifts) before opening a PR.", "ref": "context/decisions.md" },
+
+    { "id": "sub-main", "type": "subsystem", "name": "Entry / orchestrator", "file": "src/main.js", "summary": "Scene, render loop, dev menu, teleports; preloads the asset registries before world generation." },
+    { "id": "sub-world", "type": "subsystem", "name": "World streaming", "file": "src/world.js", "summary": "Infinite chunk-streamed maze; layout zones; wall arrows; sparse lights. Deterministic per seed." },
+    { "id": "sub-rooms", "type": "subsystem", "name": "Special rooms", "file": "src/rooms.js", "summary": "'Someone was here' rooms (~1 per 250m²); themed model+sign placement; ~40% get a texture skin." },
+    { "id": "sub-objects", "type": "subsystem", "name": "Model registry", "file": "src/objects.js", "summary": "Loads/caches glTF + STL models to cloneable templates. randomObject (research clutter) / getObject (specific)." },
+    { "id": "sub-svgprops", "type": "subsystem", "name": "SVG prop registry", "file": "src/svgprops.js", "summary": "Parses SVG files (SVGLoader) into flat unlit meshes — wall signs mounted facing into rooms." },
+    { "id": "sub-textures", "type": "subsystem", "name": "Texture-skin registry", "file": "src/textures.js", "summary": "Ingests image textures as alternate wall/floor/ceiling 'skins' for leaked rooms." },
+    { "id": "sub-materials", "type": "subsystem", "name": "Base materials", "file": "src/materials.js", "summary": "Procedural canvas textures for the base yellow walls/carpet/ceiling; intentionally swappable." },
+    { "id": "sub-player", "type": "subsystem", "name": "Player controller", "file": "src/player.js", "summary": "First-person movement, per-axis AABB collision, sprint + stamina." },
+    { "id": "sub-cutscene", "type": "subsystem", "name": "Cut-scene layer", "file": "src/cutscene.js", "summary": "Found-footage opening title + in-game reveal; takes over the camera." },
+    { "id": "sub-postfx", "type": "subsystem", "name": "Post-processing", "file": "src/postfx.js", "summary": "VHS / grain / chromatic-aberration EffectComposer pass." },
+    { "id": "sub-audio", "type": "subsystem", "name": "Ambience", "file": "src/audio.js", "summary": "Procedural brown-noise room tone + fluorescent hum coupled to the light flicker." },
+    { "id": "sub-proproom", "type": "subsystem", "name": "Prop Room (dev)", "file": "src/proproom.js", "summary": "Dev test chamber laying out one of every registered prop; dev-menu key 5." },
+    { "id": "sub-stage2", "type": "subsystem", "name": "Stage 2 (dev)", "file": "src/stage2.js", "summary": "Separate dev room off the world grid (fixed far coordinate); dev-menu key 4." },
+    { "id": "sub-config", "type": "subsystem", "name": "Config", "file": "src/config.js", "summary": "Central tunables: zone profiles, lights, movement, special-room params." },
+    { "id": "sub-rng", "type": "subsystem", "name": "Seeded RNG", "file": "src/rng.js", "summary": "Deterministic mulberry32 + hashCell; per-feature salted streams keep layouts reproducible." },
+
+    { "id": "concept-leak", "type": "concept", "name": "The Leak / alteration", "summary": "Others' influence reinterprets the base yellow into an altered Backrooms — accurate in essence but never a copy.", "ref": "context/goal.md §5.6" },
+    { "id": "concept-shared-lobby", "type": "concept", "name": "Shared lobby", "summary": "Persistent shared space where presences bleed in. Deferred; NPC-mocked for now.", "ref": "context/goal.md §5.2" },
+    { "id": "concept-null-zone", "type": "concept", "name": "Green Glow / Null Zones", "summary": "Green-glow unstable spots as landmarks/portals; realized as encounter-zone floor markers.", "ref": "context/goal.md §6.7" },
+    { "id": "concept-still-life", "type": "concept", "name": "Still Lifes", "summary": "Distorted human copies — future NPC/entity visuals.", "ref": "context/goal.md §6.4" },
+    { "id": "concept-layout-zones", "type": "concept", "name": "Layout zones", "summary": "Grid partitioned into open / rooms / corridor / encounter zones so space changes character as you walk.", "ref": "src/config.js" },
+    { "id": "concept-content-pipeline", "type": "concept", "name": "Drop-a-file content pipeline", "summary": "The three registries share one pattern: drop an asset into public/, add a registry entry. Extensible by non-coders." },
+
+    { "id": "mech-stamina", "type": "mechanic", "name": "Sprint + stamina", "summary": "Hold shift to run; stamina drains, regenerates, and locks out sprint while exhausted." },
+    { "id": "mech-dev-menu", "type": "mechanic", "name": "Dev menu", "summary": "T opens it; 1 random room, 2 arrow, 3 reset seed, 4 Stage 2, 5 Prop Room." },
+    { "id": "mech-found-footage", "type": "mechanic", "name": "Found-footage aesthetic", "summary": "REC light / VHS tracking / datestamp camcorder framing; the opening plays as a cut-scene." },
+
+    { "id": "src-polyhaven", "type": "source", "name": "Poly Haven", "summary": "CC0 models + seamless textures; pullable via api.polyhaven.com.", "tags": ["cc0"] },
+    { "id": "src-threejs-examples", "type": "source", "name": "three.js examples", "summary": "MIT example STL models (servo housing, slotted disk).", "tags": ["mit"] },
+
+    { "id": "dec-textures", "type": "decision", "name": "Image-texture skins", "date": "2026-07-12", "summary": "Textures re-skin room surfaces; third content pipeline.", "ref": "context/decisions.md" },
+    { "id": "dec-asset-only", "type": "decision", "name": "Asset-only props + Prop Room", "date": "2026-07-12", "summary": "Stripped procedural props; added the dev Prop Room.", "ref": "context/decisions.md" },
+    { "id": "dec-svg", "type": "decision", "name": "SVG 2D props", "date": "2026-07-12", "summary": "SVGLoader-based wall-sign registry.", "ref": "context/decisions.md" },
+    { "id": "dec-gltf", "type": "decision", "name": "glTF in the object registry", "date": "2026-07-12", "summary": "GLTFLoader path + CC0 Poly Haven props.", "ref": "context/decisions.md" },
+    { "id": "dec-stl-exception", "type": "decision", "name": "STL asset exception", "date": "2026-07-11", "summary": "External model files as a deliberate exception to procedural-only.", "ref": "context/decisions.md" },
+    { "id": "dec-zones", "type": "decision", "name": "Config-driven layout zones", "date": "2026-07-11", "summary": "Replaced the per-region corridor system with weighted zone profiles.", "ref": "context/decisions.md" },
+    { "id": "dec-flynn-direction", "type": "decision", "name": "Direction handed to Flynn", "date": "2026-07-11", "summary": "Feature roadmap cleared; goal lives in goal.md, shaped by Flynn.", "ref": "context/decisions.md" },
+    { "id": "dec-threejs", "type": "decision", "name": "three.js over raw WebGL", "date": "2026-07-11", "summary": "Shader/post-processing-heavy roadmap; three.js gives EffectComposer + instancing.", "ref": "context/decisions.md" }
+  ],
+  "edges": [
+    { "from": "sub-objects", "rel": "parallels", "to": "sub-svgprops" },
+    { "from": "sub-svgprops", "rel": "parallels", "to": "sub-textures" },
+    { "from": "sub-objects", "rel": "part_of", "to": "concept-content-pipeline" },
+    { "from": "sub-svgprops", "rel": "part_of", "to": "concept-content-pipeline" },
+    { "from": "sub-textures", "rel": "part_of", "to": "concept-content-pipeline" },
+
+    { "from": "sub-textures", "rel": "realizes", "to": "concept-leak" },
+    { "from": "sub-textures", "rel": "sources_from", "to": "src-polyhaven" },
+    { "from": "sub-objects", "rel": "sources_from", "to": "src-polyhaven" },
+    { "from": "sub-objects", "rel": "sources_from", "to": "src-threejs-examples" },
+
+    { "from": "sub-rooms", "rel": "uses", "to": "sub-objects" },
+    { "from": "sub-rooms", "rel": "uses", "to": "sub-svgprops" },
+    { "from": "sub-rooms", "rel": "uses", "to": "sub-textures" },
+    { "from": "sub-rooms", "rel": "uses", "to": "sub-materials" },
+    { "from": "sub-rooms", "rel": "part_of", "to": "sub-world" },
+
+    { "from": "sub-world", "rel": "uses", "to": "sub-config" },
+    { "from": "sub-world", "rel": "uses", "to": "sub-rng" },
+    { "from": "sub-world", "rel": "uses", "to": "sub-materials" },
+    { "from": "sub-world", "rel": "realizes", "to": "concept-layout-zones" },
+    { "from": "sub-world", "rel": "realizes", "to": "concept-null-zone" },
+
+    { "from": "sub-proproom", "rel": "uses", "to": "sub-objects" },
+    { "from": "sub-proproom", "rel": "uses", "to": "sub-svgprops" },
+    { "from": "sub-proproom", "rel": "parallels", "to": "sub-stage2" },
+
+    { "from": "sub-main", "rel": "uses", "to": "sub-world" },
+    { "from": "sub-main", "rel": "uses", "to": "sub-player" },
+    { "from": "sub-main", "rel": "uses", "to": "sub-cutscene" },
+    { "from": "sub-main", "rel": "uses", "to": "sub-audio" },
+    { "from": "sub-main", "rel": "uses", "to": "sub-proproom" },
+    { "from": "sub-main", "rel": "uses", "to": "sub-stage2" },
+    { "from": "sub-cutscene", "rel": "uses", "to": "sub-postfx" },
+
+    { "from": "mech-dev-menu", "rel": "part_of", "to": "sub-main" },
+    { "from": "mech-stamina", "rel": "part_of", "to": "sub-player" },
+    { "from": "mech-found-footage", "rel": "part_of", "to": "sub-cutscene" },
+    { "from": "mech-found-footage", "rel": "uses", "to": "sub-postfx" },
+
+    { "from": "conv-asset-only-props", "rel": "constrains", "to": "sub-rooms" },
+    { "from": "conv-cc0", "rel": "constrains", "to": "sub-objects" },
+    { "from": "conv-cc0", "rel": "constrains", "to": "sub-textures" },
+    { "from": "conv-procedural-base", "rel": "constrains", "to": "sub-materials" },
+    { "from": "conv-procedural-base", "rel": "constrains", "to": "sub-audio" },
+
+    { "from": "dec-textures", "rel": "establishes", "to": "sub-textures" },
+    { "from": "dec-asset-only", "rel": "establishes", "to": "conv-asset-only-props" },
+    { "from": "dec-asset-only", "rel": "establishes", "to": "sub-proproom" },
+    { "from": "dec-svg", "rel": "establishes", "to": "sub-svgprops" },
+    { "from": "dec-gltf", "rel": "establishes", "to": "sub-objects" },
+    { "from": "dec-stl-exception", "rel": "establishes", "to": "sub-objects" },
+    { "from": "dec-zones", "rel": "establishes", "to": "concept-layout-zones" },
+    { "from": "dec-threejs", "rel": "establishes", "to": "sub-postfx" },
+    { "from": "dec-flynn-direction", "rel": "establishes", "to": "conv-single-player" },
+
+    { "from": "sub-world", "rel": "authored_by", "to": "flynn" },
+    { "from": "sub-player", "rel": "authored_by", "to": "flynn" },
+    { "from": "mech-stamina", "rel": "authored_by", "to": "flynn" },
+    { "from": "concept-layout-zones", "rel": "authored_by", "to": "flynn" },
+    { "from": "sub-stage2", "rel": "authored_by", "to": "flynn" },
+
+    { "from": "conv-branch-pr", "rel": "authored_by", "to": "jerry" },
+    { "from": "conv-docs-before-pr", "rel": "authored_by", "to": "jerry" },
+    { "from": "conv-cc0", "rel": "authored_by", "to": "jerry" },
+    { "from": "concept-leak", "rel": "part_of", "to": "concept-shared-lobby" },
+    { "from": "concept-still-life", "rel": "part_of", "to": "concept-shared-lobby" },
+    { "from": "conv-single-player", "rel": "constrains", "to": "concept-shared-lobby" }
+  ]
+}

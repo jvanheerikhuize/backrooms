@@ -3,6 +3,23 @@
 Append-only, terse log of decisions that aren't obvious from the code. Newest
 first. One entry per decision: date · what · why.
 
+> **Tip:** for a quick structured map of the repo, query the knowledge graph —
+> `npm run kg -- map` (overview), `-- find <term>`, `-- why <id>`, `-- show <id>`.
+> It indexes this log + goal.md so you can pull one answer instead of reading
+> everything. See `context/knowledge.json` and `context/KNOWLEDGE.md`.
+
+- **2026-07-12 · Persistent knowledge graph over the context docs.** Added
+  `context/knowledge.json` (typed nodes + typed edges) and a zero-dep query CLI
+  `context/kg.mjs` (`npm run kg -- <cmd>`: map / find / show / neighbors / why /
+  path / check / render). Nodes capture the memory types worth keeping —
+  subsystems, concepts, decisions, conventions, mechanics, people, asset
+  sources — and edges the relations between them (uses, realizes, establishes,
+  constrains, authored_by, …). Purpose: cheaper retrieval (query a few lines
+  instead of loading goal.md + this file wholesale) and a way to "chat" with the
+  codebase's own memory. The graph indexes the prose docs rather than replacing
+  them — a node's `ref` points back here / to goal.md for the detail.
+  `KNOWLEDGE.md` is a generated human view (`npm run kg -- render`).
+
 - **2026-07-12 · Image-texture SKINS (surface re-skinning).** Added
   `src/textures.js`: a registry that ingests seamless image textures from
   `public/textures/` and turns each into an alternate wall/floor/ceiling
