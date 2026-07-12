@@ -86,7 +86,7 @@
       "type": "subsystem",
       "name": "World streaming",
       "file": "src/world.js",
-      "summary": "Infinite chunk-streamed maze; layout zones; wall arrows; sparse lights. Deterministic per seed."
+      "summary": "Infinite chunk streaming + geometry builder: walks a chunk cell by cell, asks layout.js what is there, and emits instanced walls, doorways (stubs/lintel/frame/leaf), skirting, pillars, troffers and colliders."
     },
     {
       "id": "sub-rooms",
@@ -369,6 +369,36 @@
       "type": "convention",
       "name": "Verify in the browser",
       "summary": "No tests, linter, or CI — a change is verified by driving the running game with Playwright and the window.__dbg* hooks, and looking at the screenshot.",
+      "ref": "context/decisions.md"
+    },
+    {
+      "id": "sub-layout",
+      "type": "subsystem",
+      "name": "Layout / floor plan",
+      "file": "src/layout.js",
+      "summary": "Decides WHAT the maze is, per zone, deterministically: a corridor ring plus an interior that is an office grid (rooms + doors off hallway lanes), a braided recursive-backtracker maze, or the classic open pillared hall.",
+      "ref": "context/decisions.md"
+    },
+    {
+      "id": "concept-corridor-ring",
+      "type": "concept",
+      "name": "The corridor ring",
+      "summary": "Every zone is ringed by corridor, and edges on a zone boundary never carry a wall — so adjacent rings open into each other and connectivity is guaranteed structurally, without global knowledge. This is what makes a maze possible on an infinite streamed world.",
+      "ref": "context/decisions.md"
+    },
+    {
+      "id": "concept-kane-pixels",
+      "type": "concept",
+      "name": "Kane Pixels look",
+      "summary": "The visual target: grounded found-footage Level 0 — desaturated ochre walls, damp mustard carpet, a LOW OFF-WHITE ACOUSTIC-TILE CEILING (lighter than the walls; the biggest tell), fluorescent troffers, tight pools of light with real dark between.",
+      "ref": "context/goal.md"
+    },
+    {
+      "id": "dec-maze-layout",
+      "type": "decision",
+      "name": "Real floor plan + Kane Pixels aesthetic",
+      "date": "2026-07-12",
+      "summary": "Replaced per-edge random walls with a per-zone floor plan; restyled to Kane Pixels. Doors park at 90 degrees because collision is AABB-only.",
       "ref": "context/decisions.md"
     }
   ],
@@ -725,6 +755,41 @@
     },
     {
       "from": "conv-verify-in-browser",
+      "rel": "authored_by",
+      "to": "jerry"
+    },
+    {
+      "from": "sub-world",
+      "rel": "uses",
+      "to": "sub-layout"
+    },
+    {
+      "from": "sub-layout",
+      "rel": "realizes",
+      "to": "concept-corridor-ring"
+    },
+    {
+      "from": "sub-materials",
+      "rel": "realizes",
+      "to": "concept-kane-pixels"
+    },
+    {
+      "from": "dec-maze-layout",
+      "rel": "establishes",
+      "to": "sub-layout"
+    },
+    {
+      "from": "dec-maze-layout",
+      "rel": "establishes",
+      "to": "concept-kane-pixels"
+    },
+    {
+      "from": "dec-maze-layout",
+      "rel": "authored_by",
+      "to": "jerry"
+    },
+    {
+      "from": "sub-layout",
       "rel": "authored_by",
       "to": "jerry"
     }

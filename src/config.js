@@ -11,11 +11,24 @@ export const CONFIG = {
   // fully deterministic *within* a session — only reloading reshuffles it.
   seed: (Math.random() * 0xffffffff) >>> 0,
 
-  // Geometry (metres).
-  cellSize: 4.2, // footprint of one grid cell
-  wallHeight: 3.0, // floor-to-ceiling
-  pillarSize: 1.3, // square pillar side length
-  wallThickness: 0.3, // thickness of wall segments
+  // Geometry (metres). The cell is the width of a hallway, so it sets the scale
+  // of everything: at 3 m a corridor feels like a real corridor you could touch
+  // both walls of, and a 3-cell room is a believable 9 m office. The ceiling sits
+  // low on purpose — Kane's Level 0 is oppressive because it's *short*, not tall.
+  cellSize: 3.0, // footprint of one grid cell = the width of a hallway
+  wallHeight: 2.7, // floor-to-ceiling
+  pillarSize: 1.0, // square pillar side length
+  wallThickness: 0.24, // thickness of wall segments
+
+  // Doorways. `width` must stay comfortably under cellSize — the wall either
+  // side of an opening is (cellSize - width) / 2, and that has to be a wall you
+  // can actually see rather than a sliver.
+  doors: {
+    width: 1.05,
+    height: 2.1,
+    leafThickness: 0.045,
+    jamb: 0.07, // frame/architrave thickness
+  },
 
   // Chunk streaming. A chunk is chunkCells × chunkCells cells.
   chunkCells: 6,
@@ -24,31 +37,40 @@ export const CONFIG = {
   // ── Map layout: ZONES ──────────────────────────────────────────────────
   // The world is split into square zones; each zone is assigned one of the
   // layout PROFILES below (weighted-random, deterministic per seed). Walking
-  // takes you between zones of different character — open spaces, rooms,
-  // corridors, encounter areas. **This is where you shape how the space
-  // generates**: edit weights, retune a profile, or add your own.
+  // takes you between zones of different character. **This is where you shape
+  // how the space generates**: edit weights, retune a profile, or add your own.
   //
-  // Profile fields (all optional; sensible defaults apply):
+  // Every zone — whatever its profile — is ringed by a corridor, and that ring
+  // opens into its neighbours' rings. That's what guarantees you can always get
+  // out of anywhere, and it's why the interiors below are free to be as hostile
+  // as they like. See the header of layout.js; it's the load-bearing idea.
+  //
+  // `cells` must stay at 13 for the office profile: its interior is 11 cells,
+  // which is exactly three 3-cell rooms plus two 1-cell hallway lanes.
+  //
+  // Profile fields (all optional):
   //   weight            relative chance a zone gets this profile
-  //   wallChance        per cell-edge wall probability (0 = open, ~0.34 = rooms)
-  //   wallContinuation  >1 extends walls into longer runs / enclosures
-  //   pillarChance      per-cell pillar probability (rare)
-  //   corridor:true     the zone is one long walled hallway
+  //   offices:true      a 3x3 grid of walled rooms off crossing hallway lanes
+  //   maze:true         a braided recursive-backtracker corridor maze
   //   encounter:true    an open clearing with a marker (reserved for encounters)
-  //   spawnOnly:true    excluded from random zone assignment — only reachable
-  //                     via `spawnProfile` below, so there's exactly one on
-  //                     the whole map (the spawn marker).
+  //   spawnOnly:true    excluded from random assignment — only reachable via
+  //                     `spawnProfile`, so there's exactly one on the whole map
+  //   wallChance        (open halls only) per cell-edge wall probability
+  //   wallContinuation  (open halls only) >1 extends walls into longer runs
+  //   pillarChance      (open halls only) per-cell pillar probability
   zones: {
-    cells: 13, // zone size in grid cells (~55 m square)
+    cells: 13, // zone size in grid cells (39 m square at cellSize 3)
     spawnProfile: "encounter", // the fresh corner always uses this — player spawns on its marker
     profiles: [
-      { name: "open", weight: 3, wallChance: 0.045, wallContinuation: 4.0, pillarChance: 0.08 },
-      { name: "rooms", weight: 3, wallChance: 0.34, wallContinuation: 5.0, pillarChance: 0.01 },
-      { name: "corridors", weight: 2, corridor: true },
-      { name: "encounter", weight: 1, wallChance: 0.0, pillarChance: 0.0, encounter: true, spawnOnly: true },
+      { name: "offices", weight: 4, offices: true },
+      { name: "maze", weight: 2, maze: true },
+      // The classic Backrooms: no floor plan, just open space and pillars. Kept
+      // as a minority — a built-up floor only reads as oppressive if you
+      // sometimes walk out of one into nothing at all.
+      { name: "halls", weight: 3, wallChance: 0.06, wallContinuation: 4.0, pillarChance: 0.1 },
+      { name: "encounter", weight: 1, encounter: true, spawnOnly: true },
     ],
   },
-  corridorWidth: 2, // interior width (cells) of corridor-zone hallways
 
   // "Someone was here" rooms — enclosed rooms, roughly one per 250x250m
   // region (deterministic, jittered within an inner margin so rooms in
@@ -69,12 +91,13 @@ export const CONFIG = {
   // once per generated wall segment.
   arrowChance: 0.004,
 
-  // Minimum-density floor. Natural per-cell probabilities can still roll a
-  // near-empty patch; if a chunk ends up with fewer than this many
-  // walls+pillars combined, extra pillars are added deterministically until
-  // the floor is met (corridor/encounter zones are exempt — they're meant to
-  // stay open).
-  minBlockersPerChunk: 20,
+  // Fluorescent troffer — the recessed rectangular fixture in the ceiling grid.
+  // A 2x4-foot panel, the ubiquitous office light, and the single most
+  // recognisable object in the whole aesthetic.
+  troffer: {
+    length: 1.25,
+    width: 0.6,
+  },
 
   // Lights. The map is divided into lightCellSize² cells; each has a
   // lightCellChance chance of holding one fixture, jittered inside a margin
@@ -82,16 +105,20 @@ export const CONFIG = {
   // ever land) are never closer than 2*lightCellMargin apart — this is what
   // stops fixtures from ever spawning inside each other or stacked too close
   // (same jittered-grid technique specialRooms uses for its min-distance
-  // guarantee). Each a bright fixture that pools light on the floor.
-  // `maxActiveLights` caps how many real point-lights are lit near the
-  // player (perf); the rest still glow as emissive panels.
-  lightCellSize: 35, // metres
-  lightCellChance: 0.25, // ~= the old average of 1-3 lights per 100x100m
-  lightCellMargin: 13, // metres — guarantees >=26m between any two fixtures
-  lightRange: 42, // metres a light reaches — bigger = less dark
-  lightIntensity: 80, // brightness of each fixture
-  lightDecay: 1.3, // falloff; lower = reaches further
-  maxActiveLights: 10, // real point-lights lit at once (nearest to player)
+  // guarantee). `maxActiveLights` caps how many real point-lights are lit near
+  // the player (perf); the rest still glow as emissive panels.
+  //
+  // Denser and dimmer than a naive "light the level" setup: an office corridor
+  // has a fixture every few metres, but each one is weak and pools tightly, so
+  // the space reads as a chain of lit patches with dark between them rather than
+  // as evenly floodlit. That rhythm is the look.
+  lightCellSize: 11, // metres
+  lightCellChance: 0.8,
+  lightCellMargin: 3.5, // metres — guarantees >=7m between any two fixtures
+  lightRange: 22, // metres a light reaches
+  lightIntensity: 30, // brightness of each fixture
+  lightDecay: 1.5, // falloff; lower = reaches further
+  maxActiveLights: 18, // real point-lights lit at once (nearest to player)
 
   // Player.
   eyeHeight: 1.7,
@@ -114,15 +141,22 @@ export const CONFIG = {
   staminaResume: 0.25, // recover to this fraction before sprinting again
 
   // Fog — hides the streaming boundary and sells the oppressive endlessness.
-  fogNear: 3.0,
-  fogFar: 30.0,
+  // Pulled back from the old wall-of-black: in the footage you *can* see down a
+  // corridor, and the dread is that it keeps going, not that it's hidden.
+  fogNear: 4.5,
+  fogFar: 34.0,
 
-  // Palette.
+  // Palette — Kane Pixels "The Backrooms (Found Footage)" Level 0.
+  // Deliberately LOW SATURATION: the dread comes from the light, not the hue.
+  // These are base tints; materials.js layers stains, seams and grime on top.
   colors: {
-    wallpaper: 0xb8a12e,
-    carpet: 0x5a4f1c,
-    ceiling: 0x8f7f2a,
-    lightPanel: 0xfff6cf,
-    fog: 0x151206,
+    wallpaper: 0x9e9264, // damp aged wallpaper — muted ochre, slightly greenish-grey
+    carpet: 0x6b5c33, // dirty mustard-brown loop pile — darker/warmer than the walls
+    ceiling: 0xcfccc2, // off-white mineral-fibre acoustic tile — LIGHTER than the walls
+    lightPanel: 0xf6f2e2, // cool-ish fluorescent white, barely warm
+    fog: 0x14120c, // murky near-black; keeps distance grounded rather than yellow
+    baseboard: 0x3a352d, // dark scuffed vinyl skirting at the wall/floor junction
+    doorFrame: 0xd6d0c0, // painted trim — grubby cream
+    door: 0xa7a294, // institutional beige-grey painted door leaf
   },
 };

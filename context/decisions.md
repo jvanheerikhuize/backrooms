@@ -8,6 +8,41 @@ first. One entry per decision: date · what · why.
 > It indexes this log + goal.md so you can pull one answer instead of reading
 > everything. See `context/knowledge.json` and `context/KNOWLEDGE.md`.
 
+- **2026-07-12 · A real floor plan (layout.js), and the Kane Pixels look.** The
+  world is now a maze of hallways and rooms with doors, styled after Kane Pixels'
+  found-footage Level 0. Two decisions worth recording:
+
+  **Why the old generator had to go.** It rolled a coin per cell edge ("is there
+  a wall here?"). That can't produce a maze — walls land wherever the dice say, so
+  you get open space speckled with wall fragments, never a hallway you can follow
+  or a room you can close a door on. It also had no notion of connectivity, so a
+  minimum-density "top-up" pass had to scatter extra walls in just to stop chunks
+  reading as empty. `src/layout.js` replaces it with a floor plan computed per
+  zone: an office grid, a corridor maze, or the classic open hall.
+
+  **The corridor ring is the load-bearing idea.** You can't run a maze algorithm
+  over an infinite streamed world — there's no global to run it on. So: every zone
+  is ringed by a corridor, and edges lying exactly on a zone boundary never carry
+  a wall. Adjacent rings therefore open into each other automatically, and
+  connectivity between zones is guaranteed *structurally*, without any zone ever
+  needing to know what its neighbours did. That's what buys the freedom for an
+  interior to be as hostile as it likes — a maze can't strand you, because the
+  ring is always there to walk back out to. Verified by flood-filling the real
+  collider set from spawn: the whole 110x110 m sampled area is reachable, across
+  all zone types, on multiple seeds.
+
+  **Doors park at right angles.** An open door leaf is always at exactly 90°, never
+  ajar. Collision in this game is axis-aligned boxes only, so a door ajar at 40°
+  would look right and collide wrong; square-on, the leaf's AABB *is* the leaf.
+  Doorways are always passable — a closed door that blocked a room would break the
+  connectivity guarantee — so "closed door" is expressed instead as a **blind
+  door**: a leaf standing in a solid wall, framed, opening onto nothing. It costs
+  no collider and is the most Backrooms object in the building.
+
+  Scale came down with it (cell 4.2 m → 3 m, ceiling 3.0 m → 2.7 m): a corridor
+  should be something you could touch both walls of, and Level 0 is oppressive
+  because it's *short*.
+
 - **2026-07-12 · A skill library for the repo's fiddly workflows.** Added six
   Claude Code skills (`.claude/skills/`) alongside the original three:
   `add-content` (the three asset registries), `add-entity`, `add-place`,
