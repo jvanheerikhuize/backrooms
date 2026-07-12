@@ -14,6 +14,7 @@ import { preloadSvgProps } from "./svgprops.js";
 import { preloadSkins } from "./textures.js";
 import { buildStage2Room, STAGE2_POS } from "./stage2.js";
 import { buildPropRoom, PROPROOM_POS } from "./proproom.js";
+import { WorldPlace, RoomPlace } from "./place.js";
 
 // Kick the STL model fetches off immediately so they load in parallel with
 // the synchronous setup below; awaited just before the first world.update()
@@ -113,16 +114,51 @@ stage2Scene.background = new THREE.Color(0x0e0e0e);
 // across its whole area rather than fading to darkness at a distance.
 const stage2 = buildStage2Room(materials);
 stage2Scene.add(stage2.group);
-let inStage2 = false;
 
 // Prop Room — dev-only test chamber holding one of every registered prop.
-// Built lazily on first teleport (see togglePropRoom) so the model/SVG caches
-// are already warm.
+// Built lazily on first entry (see its `build`) so the model/SVG caches are warm.
 const propRoomScene = new THREE.Scene();
 propRoomScene.background = new THREE.Color(CONFIG.colors.fog);
 propRoomScene.fog = new THREE.Fog(CONFIG.colors.fog, CONFIG.fogNear, CONFIG.fogFar);
-let propRoom = null;
-let inPropRoom = false;
+
+// The three places you can be in. `activePlace` replaces the old
+// inStage2/inPropRoom flags; goTo() (below) switches between them.
+const worldPlace = new WorldPlace({ id: "world", scene, spawn: SPAWN_POS, world });
+const stage2Place = new RoomPlace({
+  id: "stage2",
+  scene: stage2Scene,
+  spawn: STAGE2_POS,
+  vignette: 0,
+  mutesBed: true,
+  colliders: stage2.colliders,
+});
+const propRoomPlace = new RoomPlace({
+  id: "propRoom",
+  scene: propRoomScene,
+  spawn: PROPROOM_POS,
+  build: () => buildPropRoom(materials),
+  // Arrive at the south edge looking north, so the whole grid of props (and the
+  // signs on the far wall) is laid out ahead of you.
+  placeCamera: (cam, place) =>
+    cam.position.set(PROPROOM_POS.wx, CONFIG.eyeHeight, PROPROOM_POS.wz + place.room.size / 2 - 1.3),
+});
+let activePlace = worldPlace;
+
+// Switch to a place: render its scene, apply its vignette + audio bed, spawn the
+// camera there, and stream it (the world streams; fixed rooms don't). One code
+// path for every transition — replaces the scattered inStage2/inPropRoom logic.
+function goTo(place) {
+  place.ensureBuilt();
+  activePlace = place;
+  fx.setScene(place.scene);
+  fx.setVignette(place.vignette);
+  ambience[place.mutesBed ? "muteBed" : "unmuteBed"]();
+  player.yaw = 0;
+  player.pitch = 0;
+  camera.rotation.set(0, 0, 0);
+  place.placeCamera(camera);
+  place.stream(camera.position.x, camera.position.z);
+}
 
 // Building chunks (world.update) is deferred until objectsReady resolves —
 // see the bottom of this file — so no room's deterministic prop rng stream
@@ -262,18 +298,8 @@ window.__dbgResetSeed = resetSeed;
 // set, and drops the ambient "static" bed (see stage2.js/audio.js); leaving
 // reverses all of that and resumes normal world streaming from the spawn marker.
 function toggleStage2() {
-  inStage2 = !inStage2;
-  if (inStage2) inPropRoom = false; // the two dev rooms are mutually exclusive
-  fx.setScene(inStage2 ? stage2Scene : scene);
-  fx.setVignette(inStage2 ? 0 : 1.15);
-  ambience[inStage2 ? "muteBed" : "unmuteBed"]();
-  const pos = inStage2 ? STAGE2_POS : SPAWN_POS;
-  camera.position.set(pos.wx, CONFIG.eyeHeight, pos.wz);
-  player.yaw = 0;
-  player.pitch = 0;
-  camera.rotation.set(0, 0, 0);
-  if (!inStage2) world.update(pos.wx, pos.wz);
-  return { inStage2 };
+  goTo(activePlace === stage2Place ? worldPlace : stage2Place);
+  return { inStage2: activePlace === stage2Place };
 }
 window.__dbgToggleStage2 = toggleStage2;
 
@@ -281,25 +307,8 @@ window.__dbgToggleStage2 = toggleStage2;
 // inspection), or back to spawn if already there. Built on first entry, into
 // its own scene (see the propRoomScene setup above).
 function togglePropRoom() {
-  if (!propRoom) {
-    propRoom = buildPropRoom(materials);
-    propRoomScene.add(propRoom.group);
-  }
-  inPropRoom = !inPropRoom;
-  if (inPropRoom) inStage2 = false;
-  fx.setScene(inPropRoom ? propRoomScene : scene);
-  player.yaw = 0;
-  player.pitch = 0;
-  camera.rotation.set(0, 0, 0);
-  if (inPropRoom) {
-    // Stand at the room's south edge looking north, so the whole grid of props
-    // (and the signs on the far wall) is laid out ahead of you on arrival.
-    camera.position.set(PROPROOM_POS.wx, CONFIG.eyeHeight, PROPROOM_POS.wz + propRoom.size / 2 - 1.3);
-  } else {
-    camera.position.set(SPAWN_POS.wx, CONFIG.eyeHeight, SPAWN_POS.wz);
-    world.update(SPAWN_POS.wx, SPAWN_POS.wz);
-  }
-  return { inPropRoom, props: propRoom.count };
+  goTo(activePlace === propRoomPlace ? worldPlace : propRoomPlace);
+  return { inPropRoom: activePlace === propRoomPlace, props: propRoomPlace.room?.count };
 }
 window.__dbgTogglePropRoom = togglePropRoom;
 
@@ -510,14 +519,14 @@ function animate() {
   if (cutscene.active) {
     cutscene.update(dt, t);
   } else {
-    const colliders = inPropRoom ? propRoom.colliders : inStage2 ? stage2.colliders : world.collidersNear(camera.position.x, camera.position.z);
+    const colliders = activePlace.collidersNear(camera.position.x, camera.position.z);
     player.update(dt, colliders);
     cutscene.update(dt, t); // eases the found-FX back to clean after a cut-scene
   }
 
-  // Keep the world streamed around the player — skipped in the dev rooms, which
-  // sit far outside the procedural maze and aren't part of its streaming.
-  if (!inStage2 && !inPropRoom) world.update(camera.position.x, camera.position.z);
+  // Keep the active place streamed around the player — the world streams chunks;
+  // the fixed dev rooms are a no-op here.
+  activePlace.stream(camera.position.x, camera.position.z);
 
   // Flicker the fluorescents; the sparse fixtures nearest the player get a real
   // point-light, the emissive panels glow, all buzzing together.
