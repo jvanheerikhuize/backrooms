@@ -14,10 +14,12 @@ import { CONFIG } from "./config.js";
 import { mulberry32, hashCell } from "./rng.js";
 import { randomObject, getObject } from "./objects.js";
 import { randomSvgProp } from "./svgprops.js";
+import { randomSkin } from "./textures.js";
 
 const RS = CONFIG.specialRooms;
 const SALT_SHAPE = 0x7001;
 const SALT_PROPS = 0x8001;
+const SALT_SKIN = 0x9001; // independent stream so re-skinning doesn't shift prop layouts
 
 // Materials for the festival room's table-top cake slice (see addCake) —
 // simple enough to build from primitives rather than pull in a real asset,
@@ -759,10 +761,36 @@ function addExtraFurniture(group, colliders, rng, room) {
   colliders.push({ minX: x - obj.halfX - px, maxX: x + obj.halfX + px, minZ: z - obj.halfZ - px, maxZ: z + obj.halfZ + px });
 }
 
+// An overlaid floor + ceiling plane across the room footprint, using a skin's
+// materials. Sits just above/below the chunk's own base surfaces so a skinned
+// room's ground and ceiling change too, not only its walls. Per-room geometry
+// (disposable); the skin materials are shared and never disposed.
+function addSkinnedSurfaces(group, room, skin) {
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(room.w, room.d), skin.floor);
+  floor.geometry.userData.disposable = true;
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.set(room.x, 0.02, room.z);
+  group.add(floor);
+
+  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(room.w, room.d), skin.ceiling);
+  ceil.geometry.userData.disposable = true;
+  ceil.rotation.x = Math.PI / 2;
+  ceil.position.set(room.x, CONFIG.wallHeight - 0.02, room.z);
+  group.add(ceil);
+}
+
 export function buildRoomGroup(room, materials) {
   const group = new THREE.Group();
   const colliders = [];
-  buildWalls(group, colliders, materials.wall, room);
+
+  // Some rooms are "leaked" — re-skinned with an alternate wall/floor/ceiling
+  // texture set (see textures.js). Independent RNG stream so this never shifts
+  // the prop layout. Falls back to the base look if no skin loaded.
+  const skinRng = rngForRegion(SALT_SKIN, room.rx, room.ry);
+  const skin = skinRng() < 0.4 ? randomSkin(skinRng) : null;
+
+  buildWalls(group, colliders, skin ? skin.wall : materials.wall, room);
+  if (skin) addSkinnedSurfaces(group, room, skin);
   const wallCount = colliders.length; // floor props (below) are whatever's added past this point
 
   const propRng = rngForRegion(SALT_PROPS, room.rx, room.ry);

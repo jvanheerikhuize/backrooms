@@ -5,3 +5,5 @@ dist/
 
 # Personal, per-machine Claude Code settings (skills in .claude/skills/ ARE tracked)
 .claude/settings.local.json
+.claude/settings.local.json.tmp.*
+**/.claude/settings.local.json*
