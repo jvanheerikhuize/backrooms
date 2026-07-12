@@ -39,7 +39,8 @@
     { "id": "sub-stage2", "type": "subsystem", "name": "Stage 2 (dev)", "file": "src/stage2.js", "summary": "Separate dev room off the world grid (fixed far coordinate); dev-menu key 4." },
     { "id": "sub-config", "type": "subsystem", "name": "Config", "file": "src/config.js", "summary": "Central tunables: zone profiles, lights, movement, special-room params." },
     { "id": "sub-rng", "type": "subsystem", "name": "Seeded RNG", "file": "src/rng.js", "summary": "Deterministic mulberry32 + hashCell; per-feature salted streams keep layouts reproducible." },
-    { "id": "sub-place", "type": "subsystem", "name": "Places", "file": "src/place.js", "summary": "Where-you-are abstraction (world / Stage 2 / Prop Room): scene, spawn, collision, streaming. Replaced the inStage2/inPropRoom flags; the seam the future entity loop plugs into." },
+    { "id": "sub-place", "type": "subsystem", "name": "Places", "file": "src/place.js", "summary": "Where-you-are abstraction (world / Stage 2 / Prop Room): scene, spawn, collision, streaming. Replaced the inStage2/inPropRoom flags; the seam the entity loop plugs into." },
+    { "id": "sub-entity", "type": "subsystem", "name": "Entity layer", "file": "src/entity.js", "summary": "Tiny entity list + per-frame update + a nearest-presence proximity signal. The seam NPCs / items / an audio entity plug into (no entities yet). Feeds the future leak + dread systems." },
 
     { "id": "concept-leak", "type": "concept", "name": "The Leak / alteration", "summary": "Others' influence reinterprets the base yellow into an altered Backrooms — accurate in essence but never a copy.", "ref": "context/goal.md §5.6" },
     { "id": "concept-shared-lobby", "type": "concept", "name": "Shared lobby", "summary": "Persistent shared space where presences bleed in. Deferred; NPC-mocked for now.", "ref": "context/goal.md §5.2" },
@@ -94,6 +95,7 @@
 
     { "from": "sub-main", "rel": "uses", "to": "sub-place" },
     { "from": "sub-place", "rel": "uses", "to": "sub-world" },
+    { "from": "sub-main", "rel": "uses", "to": "sub-entity" },
     { "from": "sub-main", "rel": "uses", "to": "sub-world" },
     { "from": "sub-main", "rel": "uses", "to": "sub-player" },
     { "from": "sub-main", "rel": "uses", "to": "sub-cutscene" },
