@@ -190,6 +190,44 @@ export const OBJECT_REGISTRY = [
     label: "military ammo crate",
     targetSize: 0.26,
   },
+  {
+    id: "television",
+    file: "/models/gltf/Television_01/Television_01_1k.gltf",
+    format: "gltf",
+    label: "old CRT television",
+    targetSize: 0.6,
+  },
+  {
+    id: "fire-extinguisher",
+    file: "/models/gltf/korean_fire_extinguisher_01/korean_fire_extinguisher_01_1k.gltf",
+    format: "gltf",
+    label: "fire extinguisher",
+    targetSize: 0.66,
+  },
+  {
+    id: "trash-can",
+    file: "/models/gltf/metal_trash_can/metal_trash_can_1k.gltf",
+    format: "gltf",
+    label: "metal trash can",
+    targetSize: 0.95,
+  },
+  {
+    id: "potted-plant",
+    file: "/models/gltf/anthurium_botany_01/anthurium_botany_01_1k.gltf",
+    format: "gltf",
+    label: "potted plant",
+    targetSize: 1.1,
+  },
+  // Small clutter — joins the random "research" pool (rooms.js addResearchProp).
+  {
+    id: "rusted-can",
+    file: "/models/gltf/can_rusted/can_rusted_1k.gltf",
+    format: "gltf",
+    label: "rusted can",
+    category: "research",
+    targetSize: 0.15,
+    roundFootprint: true,
+  },
 ];
 
 const stlLoader = new STLLoader();

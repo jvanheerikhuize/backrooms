@@ -3,6 +3,16 @@
 Append-only, terse log of decisions that aren't obvious from the code. Newest
 first. One entry per decision: date · what · why.
 
+- **2026-07-12 · Rooms are asset-only; added a dev Prop Room.** Stripped every
+  procedurally-built prop and the box/cylinder fallbacks from `rooms.js` — themes
+  now place ONLY registry models (glTF/STL) + SVG signs; the only primitives left
+  are the room's own walls. (Deleted the trinket/confetti/cake/bedroll/box-wall-
+  decor code and its materials.) Added 8 more CC0 props (TV, fire extinguisher,
+  trash can, potted plant, rusted can, +3 SVG signs). New `src/proproom.js`: a
+  dev-only test chamber (like Stage 2, off the world grid) laying out one of
+  every registered prop in a grid with all signs on a wall — reached via **dev
+  menu key 5**. Rationale: the user wants a pure asset-driven prop system and a
+  single place to eyeball every prop.
 - **2026-07-12 · SVG-ingested 2D props (wall signs).** Added `src/svgprops.js`:
   a second registry that parses SVG files (three's `SVGLoader`) into flat filled
   meshes — arrow, exit, hazard, radiation, no-entry — mounted flush on room
