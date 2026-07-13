@@ -333,9 +333,19 @@ export class World {
 
     // Parked at a right angle to the frame, hinged on one jamb, swung to one
     // face. See the file header for why it's exactly 90° and not ajar.
+    //
+    // The hinge-side offset is doorW/2 + leafT/2 — flush against the STUB's
+    // face, not inset into the doorway span. Player-radius padding inflates
+    // every collider independently (see partCollider), so a leaf sitting
+    // even slightly inside the opening had its padding stack with the stub's
+    // and choke the passable centre down from 0.35m to ~0.28m — tight enough
+    // that some doors read as blocked. Flush placement keeps the leaf's
+    // padded footprint entirely inside the stub's already-blocked zone, so
+    // an open door costs no extra clearance versus a doorless (open:false)
+    // frame.
     const hinge = door.swing; // which jamb it hangs on
     const face = door.swing; // and which way it opens (into whatever's there)
-    const leaf = partMatrix(base, hinge * (doorW / 2 - leafT), doorH / 2, face * (doorW / 2), Math.PI / 2);
+    const leaf = partMatrix(base, hinge * (doorW / 2 + leafT / 2), doorH / 2, face * (doorW / 2), Math.PI / 2);
     parts.leaf.push(leaf);
     colliders.push(partCollider(leaf, doorW - 0.04, doorH - 0.03, leafT));
   }
@@ -468,8 +478,12 @@ export class World {
     this.addInstanced(group, pillarGeo, this.materials.wall, pillars, false);
     this.addInstanced(group, wallGeoX, this.materials.wall, wallX, false);
     this.addInstanced(group, wallGeoZ, this.materials.wall, wallZ, false);
-    this.addInstanced(group, baseboardGeoX, this.materials.baseboard, baseX, false);
-    this.addInstanced(group, baseboardGeoZ, this.materials.baseboard, baseZ, false);
+    // Baseboard trim disabled — it was rendering as a stark black line at the
+    // wall/floor junction (too little light reaches a low, wall-hugging vertical
+    // surface under the new lighting). baseX/baseZ are still computed above in
+    // case this gets revisited; just re-add the two addInstanced calls below.
+    // this.addInstanced(group, baseboardGeoX, this.materials.baseboard, baseX, false);
+    // this.addInstanced(group, baseboardGeoZ, this.materials.baseboard, baseZ, false);
     this.addInstanced(group, doorStubGeo, this.materials.wall, parts.stub, false);
     this.addInstanced(group, lintelGeo, this.materials.wall, parts.lintel, false);
     this.addInstanced(group, jambGeo, this.materials.doorFrame, parts.jamb, false);

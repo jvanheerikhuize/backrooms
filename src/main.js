@@ -9,7 +9,7 @@ import { Player } from "./player.js";
 import { createComposer } from "./postfx.js";
 import { Ambience } from "./audio.js";
 import { Cutscene } from "./cutscene.js";
-import { preloadObjects } from "./objects.js";
+import { preloadObjects, OBJECT_REGISTRY, getObject } from "./objects.js";
 import { preloadSvgProps } from "./svgprops.js";
 import { preloadSkins } from "./textures.js";
 import { buildStage2Room, STAGE2_POS } from "./stage2.js";
@@ -31,8 +31,14 @@ const cutsceneHud = document.getElementById("cutscene-hud");
 const ccStamp = cutsceneHud ? cutsceneHud.querySelector(".cc-stamp") : null;
 const staminaEl = document.getElementById("stamina");
 const staminaFill = document.getElementById("stamina-fill");
+const pointsFill = document.getElementById("points-fill");
 const inventoryEl = document.getElementById("inventory");
 const inventoryGrid = inventoryEl ? inventoryEl.querySelector(".inv-grid") : null;
+const inventoryDetail = inventoryEl ? inventoryEl.querySelector(".inv-detail") : null;
+const inventoryDetailCanvas = inventoryEl ? inventoryEl.querySelector(".inv-detail-canvas") : null;
+const inventoryDetailName = inventoryEl ? inventoryEl.querySelector(".inv-detail-name") : null;
+const inventoryDetailDesc = inventoryEl ? inventoryEl.querySelector(".inv-detail-desc") : null;
+const hotbarEl = document.getElementById("hotbar");
 
 // Renderer.
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -200,6 +206,7 @@ function goTo(place) {
   camera.rotation.set(0, 0, 0);
   place.placeCamera(camera);
   place.stream(camera.position.x, camera.position.z);
+  player.refillPoints();
 }
 
 // Building chunks (world.update) is deferred until objectsReady resolves —
@@ -233,6 +240,14 @@ window.__dbgPos = () => ({
 
 // Which layout profile governs a world point (offices / maze / halls / encounter).
 window.__dbgProfileAt = (x, z) => world.profileAt(x, z);
+
+window.__dbgShowDetail = (id) => {
+  const entry = OBJECT_REGISTRY.find((e) => e.id === id);
+  if (!entry) return false;
+  setInventoryOpen(true);
+  showItemDetail(entry);
+  return true;
+};
 
 // Dev teleport for exploring the different layout zones during testing.
 window.__dbgTeleport = (x, z) => {
@@ -403,27 +418,320 @@ function updateStamina() {
   staminaEl.classList.toggle("exhausted", player.exhausted);
 }
 
-// Inventory (F). A fixed grid of empty slots for now — there's no item
-// pickup system yet, but the panel and its toggle are fully wired up so
-// items just need to fill `slots` later. Freezes the player via
-// player.setPaused() instead of releasing pointer lock, so it doesn't
-// re-trigger the title overlay.
-const INVENTORY_SLOTS = 12;
-let inventoryOpen = false;
-if (inventoryGrid) {
-  for (let i = 0; i < INVENTORY_SLOTS; i++) {
-    const slot = document.createElement("div");
-    slot.className = "inv-slot";
-    inventoryGrid.appendChild(slot);
+// Points meter: always visible, ticks down over time (see player.js).
+function updatePoints() {
+  if (!pointsFill) return;
+  pointsFill.style.width = (player.points / CONFIG.pointsMax) * 100 + "%";
+}
+
+// Debug hooks for verification tooling and for wiring up point-granting
+// actions later.
+window.__dbgPoints = () => +player.points.toFixed(2);
+window.__dbgAddPoints = (amount) => player.addPoints(amount);
+
+// Sanity effects. Full sanity (>= sanityFrayStart) is the normal game with no
+// effect; from there down to sanityFrayEnd, film grain and the ambience's
+// reactivity (see audio.js's setReactivity — already built for exactly this
+// kind of "color the mix" hook) ramp up linearly. Purely cosmetic/aural —
+// nothing here dims, fogs, or otherwise changes how well the player can see.
+const BASE_GRAIN = 0.12;
+function updateSanityEffects() {
+  const { sanityFrayStart, sanityFrayEnd, sanityGrainMax, sanityReactivityMax } = CONFIG;
+  const t = THREE.MathUtils.clamp((sanityFrayStart - player.points) / (sanityFrayStart - sanityFrayEnd), 0, 1);
+  fx.setGrain(BASE_GRAIN + (sanityGrainMax - BASE_GRAIN) * t);
+  ambience.setReactivity(sanityReactivityMax * t);
+}
+
+// Low sanity (sanityFrayEnd..sanityFlashEnd): every random 3-5 points lost,
+// a low-opacity red/grey tint layer (see postfx.js's setTint()) pulses
+// twice — a half-second fade in/out right at the start of a sanityFlashSpan
+// window, then another half-second pulse right at the end of it, with a
+// silent gap in between. Tracks point loss frame-to-frame rather than
+// hooking every place points can drop, so it catches decay, damage, whatever
+// else later — one seam instead of several. Resets its accumulator if sanity
+// leaves the band so it doesn't fire on stale progress from a previous visit.
+const RED_TINT = [0.55, 0, 0];
+const GREY_TINT = [0.5, 0.5, 0.5];
+let sanityFlashLastPoints = player.points;
+let sanityFlashAccum = 0;
+let sanityFlashNext = CONFIG.sanityFlashLossMin + Math.random() * (CONFIG.sanityFlashLossMax - CONFIG.sanityFlashLossMin);
+let sanityFlashElapsed = Infinity; // >= sanityFlashSpan means no event active
+let sanityFlashColor = RED_TINT;
+function updateSanityFlash(dt) {
+  const {
+    sanityFrayEnd,
+    sanityFlashEnd,
+    sanityFlashLossMin,
+    sanityFlashLossMax,
+    sanityFlashSpan,
+    sanityFlashPulseLen,
+    sanityFlashMaxOpacity,
+  } = CONFIG;
+  const inBand = player.points < sanityFrayEnd && player.points >= sanityFlashEnd;
+  const lost = sanityFlashLastPoints - player.points;
+  sanityFlashLastPoints = player.points;
+
+  if (inBand && lost > 0) {
+    sanityFlashAccum += lost;
+  } else if (!inBand) {
+    sanityFlashAccum = 0;
+  }
+  // Only start a new event once the current one has fully played out, so
+  // pulses never overlap.
+  if (sanityFlashAccum >= sanityFlashNext && sanityFlashElapsed >= sanityFlashSpan) {
+    sanityFlashAccum = 0;
+    sanityFlashNext = sanityFlashLossMin + Math.random() * (sanityFlashLossMax - sanityFlashLossMin);
+    sanityFlashColor = Math.random() < 0.5 ? RED_TINT : GREY_TINT;
+    sanityFlashElapsed = 0;
+  }
+
+  if (sanityFlashElapsed < sanityFlashSpan) {
+    sanityFlashElapsed += dt;
+    // A smooth 0→1→0 bump across each pulse window (sin(pi*x) for x in 0..1).
+    let amt = 0;
+    if (sanityFlashElapsed < sanityFlashPulseLen) {
+      amt = Math.sin(Math.PI * (sanityFlashElapsed / sanityFlashPulseLen));
+    } else if (sanityFlashElapsed >= sanityFlashSpan - sanityFlashPulseLen) {
+      const localT = (sanityFlashElapsed - (sanityFlashSpan - sanityFlashPulseLen)) / sanityFlashPulseLen;
+      amt = Math.sin(Math.PI * localT);
+    }
+    fx.setTint(sanityFlashColor, Math.max(0, amt) * sanityFlashMaxOpacity);
   }
 }
+window.__dbgSanityFlash = () => ({
+  elapsed: +sanityFlashElapsed.toFixed(2),
+  color: sanityFlashColor === RED_TINT ? "red" : "grey",
+  accum: +sanityFlashAccum.toFixed(2),
+  next: +sanityFlashNext.toFixed(2),
+  tint: fx.getTint(),
+});
+
+// Inventory (F) + hotbar. Both are grids of slots holding the SAME kind of
+// item (an objects.js registry entry) backed by plain arrays — inventorySlots
+// / hotbarSlots — with items freely draggable between (or within) either
+// grid; see wireSlotDragDrop(). There's no full pickup system yet (nothing
+// spawns new items in the world), but the slots, drag-and-drop, and
+// click-to-inspect are all fully wired up for whenever that lands.
+//
+// Freezes the player via player.setPaused(); pointer lock is deliberately
+// released too (see setInventoryOpen) so the cursor is free to drag things,
+// without falling back to the title-overlay/paused state that a normal
+// Esc-driven unlock triggers.
+//
+// The player starts with one Almond Water (goal.md §6.5 — Object 1, the
+// canonical thing keeping wanderers alive), a random flavour of whichever
+// three are registered (see objects.js's "almond-water" group), in the first
+// inventory slot. A filled slot gets a static three.js preview (own
+// scene/camera/renderer sharing the cached, already-loaded model) instead of
+// a text label, and clicking it opens a bigger version + a description
+// beside the inventory grid.
+const INVENTORY_SLOTS = 12;
+// Hotbar slot count is also baked into style.css's #points/#stamina
+// positioning math (they sit above its left/right edges).
+const HOTBAR_SLOTS = 5;
+let inventoryOpen = false;
+
+const inventorySlots = new Array(INVENTORY_SLOTS).fill(null); // registry entry, or null
+const hotbarSlots = new Array(HOTBAR_SLOTS).fill(null);
+const inventorySlotEls = [];
+const hotbarSlotEls = [];
+const inventorySlotRenderers = new Array(INVENTORY_SLOTS).fill(null); // this slot's own preview renderer, if any
+const hotbarSlotRenderers = new Array(HOTBAR_SLOTS).fill(null);
+
+// Renders one static (non-animated), front-on view of a cached model into
+// `canvas` at `size` px — shared by the small slot icons and the bigger
+// click-to-inspect detail view. Returns the renderer so the caller can
+// dispose() it later if the canvas gets reused for a different item.
+function renderItemPreview(canvas, cached, size, rotationY = -Math.PI / 3) {
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(35, 1, 0.05, 5);
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(size, size, false);
+
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x33301a, 1.3));
+  const dir = new THREE.DirectionalLight(0xfff6cf, 1.5);
+  dir.position.set(1, 2, 1.5);
+  scene.add(dir);
+  const mesh = cached.object3D.clone();
+  // A fixed slight turn (no auto-spin) — the model's default orientation
+  // doesn't face its printed label straight at the camera, so a dead-on shot
+  // reads as a blank curve. This is just enough to catch the artwork.
+  mesh.rotation.y = rotationY;
+  // normalize() centres the model's UNROTATED bounding box, but some models
+  // (e.g. the almond water cans) aren't radially symmetric around their own
+  // pivot — a raised label/seam sits at a different angle per model, so the
+  // same fixed rotationY leaves the ROTATED box off-centre by a different
+  // amount for each one. Re-centre on X/Z using the box as rotated, so every
+  // item frames the same regardless of where its geometry's pivot really is.
+  mesh.updateMatrixWorld(true);
+  const rotatedBox = new THREE.Box3().setFromObject(mesh);
+  mesh.position.x -= (rotatedBox.max.x + rotatedBox.min.x) / 2;
+  mesh.position.z -= (rotatedBox.max.z + rotatedBox.min.z) / 2;
+  scene.add(mesh);
+
+  // The model is normalised to rest on Y=0 with a known height — frame it
+  // from slightly above.
+  const h = cached.height ?? 0.3;
+  camera.position.set(0, h * 0.55, h * 1.7);
+  camera.lookAt(0, h * 0.45, 0);
+
+  renderer.render(scene, camera);
+  return renderer;
+}
+
+// Click-to-inspect: a bigger static preview + description beside the grid.
+// Clicking the same item's slot again toggles it closed. Works from either
+// the inventory grid or the hotbar.
+let detailRenderer = null;
+let detailItemId = null;
+function showItemDetail(entry) {
+  if (!inventoryDetail) return;
+  if (detailItemId === entry.id && inventoryDetail.classList.contains("open")) {
+    inventoryDetail.classList.remove("open");
+    detailItemId = null;
+    return;
+  }
+  const cached = getObject(entry.id);
+  if (!cached) return; // model not loaded yet — nothing to show
+  if (detailRenderer) detailRenderer.dispose();
+  detailRenderer = renderItemPreview(inventoryDetailCanvas, cached, 160);
+  if (inventoryDetailName) inventoryDetailName.textContent = `Almond Water — ${entry.flavor}`;
+  if (inventoryDetailDesc) {
+    inventoryDetailDesc.textContent =
+      "Tastes the same no matter what the label says. The one thing that's kept wanderers going down here longer than anything else.";
+  }
+  inventoryDetail.classList.add("open");
+  detailItemId = entry.id;
+}
+
+// Updates one slot's backing array entry AND its visual content to match —
+// the only place either should change, so they can never drift apart.
+// Disposes that slot's previous preview renderer first (each slot gets its
+// own WebGLRenderer/canvas; leaving old ones behind after every drag would
+// leak GPU contexts, and browsers cap how many a page can have open).
+function setSlot(kind, index, item) {
+  const items = kind === "hotbar" ? hotbarSlots : inventorySlots;
+  const els = kind === "hotbar" ? hotbarSlotEls : inventorySlotEls;
+  const renderers = kind === "hotbar" ? hotbarSlotRenderers : inventorySlotRenderers;
+  items[index] = item;
+
+  if (renderers[index]) {
+    renderers[index].dispose();
+    renderers[index] = null;
+  }
+  const slotEl = els[index];
+  slotEl.classList.toggle("filled", !!item);
+  slotEl.draggable = !!item;
+  slotEl.title = item ? item.label : "";
+  slotEl.replaceChildren(); // drop any previous preview canvas (the hotkey numeral is a ::after, unaffected)
+  if (!item) return;
+
+  const canvas = document.createElement("canvas");
+  canvas.className = "inv-item-canvas";
+  slotEl.appendChild(canvas);
+  preloadObjects().then(() => {
+    const cached = getObject(item.id);
+    if (!cached) return; // failed to load — slot just stays a plain highlighted box
+    renderers[index] = renderItemPreview(canvas, cached, 48);
+  });
+}
+
+// Drag-and-drop between (or within) the inventory grid and the hotbar — a
+// full swap, so dragging onto an occupied slot trades places rather than
+// overwriting/losing the item that was there. `dragSource` is simpler than
+// threading state through DataTransfer for a same-page, same-tab drag.
+let dragSource = null; // { kind, index } of the slot currently being dragged
+function wireSlotDragDrop(slotEl, kind, index) {
+  const items = () => (kind === "hotbar" ? hotbarSlots : inventorySlots);
+
+  slotEl.addEventListener("dragstart", (e) => {
+    if (!items()[index]) {
+      e.preventDefault(); // nothing to pick up
+      return;
+    }
+    dragSource = { kind, index };
+    slotEl.classList.add("dragging");
+    e.dataTransfer.effectAllowed = "move";
+  });
+  slotEl.addEventListener("dragend", () => {
+    slotEl.classList.remove("dragging");
+    dragSource = null;
+  });
+  slotEl.addEventListener("dragover", (e) => {
+    e.preventDefault(); // required for this element to be a valid drop target
+    slotEl.classList.add("drag-over");
+  });
+  slotEl.addEventListener("dragleave", () => slotEl.classList.remove("drag-over"));
+  slotEl.addEventListener("drop", (e) => {
+    e.preventDefault();
+    slotEl.classList.remove("drag-over");
+    if (!dragSource) return;
+    if (dragSource.kind === kind && dragSource.index === index) return; // dropped on itself
+    const srcItems = dragSource.kind === "hotbar" ? hotbarSlots : inventorySlots;
+    const srcItem = srcItems[dragSource.index];
+    const dstItem = items()[index];
+    setSlot(dragSource.kind, dragSource.index, dstItem); // swap — dstItem may be null, that's fine
+    setSlot(kind, index, srcItem);
+    dragSource = null;
+  });
+}
+
+function buildSlotGrid(container, count, className, kind, slotEls) {
+  if (!container) return;
+  for (let i = 0; i < count; i++) {
+    const slot = document.createElement("div");
+    slot.className = className;
+    if (kind === "hotbar") slot.dataset.key = i + 1; // hotkey numeral, bottom-right (see style.css)
+    container.appendChild(slot);
+    slotEls.push(slot);
+    wireSlotDragDrop(slot, kind, i);
+    slot.addEventListener("click", () => {
+      const item = (kind === "hotbar" ? hotbarSlots : inventorySlots)[i];
+      if (item) showItemDetail(item);
+    });
+  }
+}
+buildSlotGrid(inventoryGrid, INVENTORY_SLOTS, "inv-slot", "inventory", inventorySlotEls);
+buildSlotGrid(hotbarEl, HOTBAR_SLOTS, "hotbar-slot", "hotbar", hotbarSlotEls);
+
+const almondFlavors = OBJECT_REGISTRY.filter((e) => e.group === "almond-water");
+const startingItem = almondFlavors[Math.floor(Math.random() * almondFlavors.length)];
+if (startingItem && inventorySlotEls.length) setSlot("inventory", 0, startingItem);
+
+// Releasing/reacquiring pointer lock for the inventory panel would otherwise
+// trip the same "unlock" handler that shows the title overlay on a real Esc
+// (see below) — this flag tells that handler "this one's expected, skip the
+// overlay/audio/auto-close side effects".
+let selfInitiatedUnlock = false;
 function setInventoryOpen(open) {
   inventoryOpen = open;
   player.setPaused(open);
   if (inventoryEl) inventoryEl.classList.toggle("open", open);
+  // The hotbar is always visible but normally pointer-events:none (so it
+  // never blocks world clicks under normal locked gameplay, where there's no
+  // free cursor to interact with it anyway) — only make it a real drag/click
+  // target while the inventory is open alongside it.
+  if (hotbarEl) hotbarEl.classList.toggle("interactive", open);
+  if (open) {
+    // Always set the flag and call exitPointerLock unconditionally — gating
+    // on document.pointerLockElement first is racy (it doesn't always
+    // reflect the true lock state at this exact synchronous instant), and
+    // exitPointerLock() is a harmless no-op if nothing is locked anyway.
+    selfInitiatedUnlock = true;
+    document.exitPointerLock();
+  } else {
+    selfInitiatedUnlock = false; // clear any stale flag from a lock that never actually released
+    if (inventoryDetail) {
+      inventoryDetail.classList.remove("open");
+      detailItemId = null;
+    }
+  }
 }
 function toggleInventory() {
-  setInventoryOpen(!inventoryOpen);
+  const opening = !inventoryOpen;
+  setInventoryOpen(opening);
+  if (!opening) player.lock(); // closing via F resumes mouse-look immediately
 }
 
 // ── Developer console (~) ────────────────────────────────────────────────
@@ -533,6 +841,13 @@ devConsole
     }
     scene.fog = savedFog;
     return "fog on";
+  })
+  .register("sanity", `set the sanity/points meter (0-${CONFIG.pointsMax})`, (a) => {
+    const n = parseFloat(a[0]);
+    if (Number.isNaN(n)) return `usage: sanity <0-${CONFIG.pointsMax}>`;
+    player.points = THREE.MathUtils.clamp(n, 0, CONFIG.pointsMax);
+    player._pointsTimer = 0;
+    return `sanity ${player.points}`;
   });
 
 // Overlay / pointer-lock wiring. Clicking ends the opening cut-scene and hands
@@ -547,6 +862,12 @@ player.controls.addEventListener("lock", () => {
   ambience.resume();
 });
 player.controls.addEventListener("unlock", () => {
+  if (selfInitiatedUnlock) {
+    // Opening the inventory (setInventoryOpen) released the lock on purpose —
+    // stay in the paused-but-playing state, not the title-overlay one.
+    selfInitiatedUnlock = false;
+    return;
+  }
   overlay.classList.remove("hidden");
   ambience.suspend();
   // Esc releases pointer lock — keep panel state in sync.
@@ -576,8 +897,10 @@ window.addEventListener("keydown", (e) => {
     cutscene.setReduceMotion(!cutscene.reduceMotion);
   }
 
-  // Inventory (F).
-  if (e.code === "KeyF" && player.isLocked && !cutscene.active) {
+  // Inventory (F). Allowed to close even while unlocked — opening it releases
+  // the pointer on purpose (see setInventoryOpen), so player.isLocked is
+  // false the whole time it's open.
+  if (e.code === "KeyF" && (player.isLocked || inventoryOpen) && !cutscene.active) {
     toggleInventory();
   }
 
@@ -663,10 +986,13 @@ function animate() {
   hemi.intensity = 0.2 + f * 0.14;
   updateLights(camera.position.x, camera.position.z, f);
 
+  updateStamina();
+  updatePoints();
+  updateSanityEffects();
+  updateSanityFlash(dt);
+
   // Fluorescent hum tracks the same flicker so light and sound buzz together.
   ambience.setFlicker(f);
-
-  updateStamina();
 
   // Persistent camera framing (REC light + datestamp) while actively playing;
   // a real cut-scene's "active" state takes over the full camcorder HUD.

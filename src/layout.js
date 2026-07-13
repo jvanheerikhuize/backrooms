@@ -46,6 +46,8 @@ const SALT = {
   hallS: 0x1001,
   hallW: 0x2001,
   pillar: 0x0001,
+  growS: 0x4001,
+  growW: 0x4002,
 };
 function rngFor(salt, a, b) {
   return mulberry32(hashCell(CONFIG.seed ^ salt, a, b));
@@ -140,16 +142,16 @@ function ringWall(L, g) {
 
 // ── offices: rooms off hallway lanes ───────────────────────────────────────
 //
-// The interior is 11 cells wide, which divides exactly into three 3-cell room
-// blocks separated by two 1-cell hallway lanes:  [1 2 3] 4 [5 6 7] 8 [9 10 11].
-// Nine rooms, a cross of lanes between them, and the lanes run out through the
-// ring wall so the whole floor plan connects to the perimeter hallway.
+// Shrunk to a 2x2 grid of 3-cell room blocks separated by one 1-cell hallway
+// lane: [1 2 3] 4 [5 6 7], out of the 11-cell-wide interior — smaller than the
+// original 3x3/nine-room layout. The unused cells (8-11) are left as plain
+// open floor inside the same ring, not a sealed-off area, so it just reads as
+// a smaller office block with some open space around it.
 const BLOCKS = [
   [1, 3],
   [5, 7],
-  [9, 11],
 ];
-const LANES = [4, 8];
+const LANES = [4];
 
 function buildOffices(L, g, rng) {
   ringWall(L, g);
@@ -317,6 +319,62 @@ function buildHalls(L, g, rng, profile, zx, zy) {
       if (lx > IN0 && edgeWall(SALT.hallW, gx, gy, gx, gy - 1)) L.walls.add(wKey(gx, gy));
       if (ly > IN0 && edgeWall(SALT.hallS, gx, gy, gx - 1, gy)) L.walls.add(sKey(gx, gy));
       if (pc > 0 && rngFor(SALT.pillar, gx, gy)() < pc) L.pillars.add(gx + "," + gy);
+    }
+  }
+
+  growSingularWalls(L, g);
+}
+
+// Some standalone single-cell wall segments ("singular" — nothing walled on
+// either side of them along their own run) stretch out into a full wall,
+// 25% chance each, so halls zones read a little less sparse/empty. Grows in
+// one random direction, one cell at a time, stopping as soon as it either
+// reaches the interior boundary or touches an existing colinear wall
+// (merging into it rather than overlapping) — so it always terminates and
+// never overlaps itself, though a long enough run can occasionally wall off
+// a pocket the way real partition walls would. Uses a fixed snapshot of the
+// original singles so growing one doesn't change whether another still
+// counts as singular.
+const GROW_CHANCE = 0.25;
+function growSingularWalls(L, g) {
+  const southSingles = [];
+  const westSingles = [];
+  for (let ly = IN0; ly <= IN1; ly++) {
+    for (let lx = IN0; lx <= IN1; lx++) {
+      const { gx, gy } = g(lx, ly);
+      if (L.walls.has(sKey(gx, gy))) {
+        const left = g(lx - 1, ly);
+        const right = g(lx + 1, ly);
+        const leftWalled = lx > IN0 && L.walls.has(sKey(left.gx, left.gy));
+        const rightWalled = lx < IN1 && L.walls.has(sKey(right.gx, right.gy));
+        if (!leftWalled && !rightWalled) southSingles.push({ lx, ly, gx, gy });
+      }
+      if (L.walls.has(wKey(gx, gy))) {
+        const below = g(lx, ly - 1);
+        const above = g(lx, ly + 1);
+        const belowWalled = ly > IN0 && L.walls.has(wKey(below.gx, below.gy));
+        const aboveWalled = ly < IN1 && L.walls.has(wKey(above.gx, above.gy));
+        if (!belowWalled && !aboveWalled) westSingles.push({ lx, ly, gx, gy });
+      }
+    }
+  }
+
+  for (const s of southSingles) {
+    if (rngFor(SALT.growS, s.gx, s.gy)() >= GROW_CHANCE) continue;
+    const dir = rngFor(SALT.growS, s.gx - 1, s.gy)() < 0.5 ? 1 : -1;
+    for (let nlx = s.lx + dir; nlx >= IN0 && nlx <= IN1; nlx += dir) {
+      const c = g(nlx, s.ly);
+      if (L.walls.has(sKey(c.gx, c.gy))) break; // touched another wall — stop
+      L.walls.add(sKey(c.gx, c.gy));
+    }
+  }
+  for (const s of westSingles) {
+    if (rngFor(SALT.growW, s.gx, s.gy)() >= GROW_CHANCE) continue;
+    const dir = rngFor(SALT.growW, s.gx, s.gy - 1)() < 0.5 ? 1 : -1;
+    for (let nly = s.ly + dir; nly >= IN0 && nly <= IN1; nly += dir) {
+      const c = g(s.lx, nly);
+      if (L.walls.has(wKey(c.gx, c.gy))) break; // touched another wall — stop
+      L.walls.add(wKey(c.gx, c.gy));
     }
   }
 }

@@ -1,7 +1,7 @@
 Source & license for the glTF models in this folder
 ====================================================
 
-All models here are from [Poly Haven](https://polyhaven.com/), released under
+Most models here are from [Poly Haven](https://polyhaven.com/), released under
 **CC0 1.0 (Creative Commons Zero / public domain)**. Per Poly Haven's license:
 
 > "You can use our assets for any purpose, including commercial work. You do not
@@ -36,6 +36,14 @@ resolution, loaded and normalised by `src/objects.js` (see `preloadObjects`).
 | `metal_trash_can` (trash-can)  | Metal Trash Can  | GurJas Studios  |
 | `anthurium_botany_01` (potted-plant) | Anthurium Botany 01 | Rob Tuytel, Rico Cilliers |
 | `can_rusted` (rusted-can)      | Can Rusted       | Rahul Chaudhary |
+
+`almond_water_coconut.glb` / `almond_water_original.glb` /
+`almond_water_dragonfruit.glb` (almond-water-coconut / almond-water-original /
+almond-water-dragonfruit) are the one exception — not Poly Haven. Flynn found
+a CC0-licensed "Almond Water" model (three flavour variants in one `.blend`
+file) and confirmed its CC0 status before it was split into one object per
+flavour and exported separately (via Blender's own glTF exporter) so each can
+places independently. Author/original source unrecorded.
 
 To add more: download a CC0 glTF (e.g. from the Poly Haven API,
 `https://api.polyhaven.com/files/<AssetName>`, the `gltf.1k.gltf` entry plus its
