@@ -29,6 +29,11 @@ export class Player {
     this.exhausted = false; // true once emptied, until it recovers past resume
     this.sprinting = false; // whether we're actually sprinting this frame (for UI)
 
+    // Points: starts full, ticks down by pointsDecayAmount every
+    // pointsDecayInterval seconds. Topped back up via addPoints().
+    this.points = CONFIG.pointsMax;
+    this._pointsTimer = 0;
+
     // A tiny EventTarget so main.js can listen for lock/unlock like before.
     this.controls = new EventTarget();
 
@@ -104,8 +109,28 @@ export class Player {
     return this._wish;
   }
 
+  // Add (or subtract) points, clamped to [0, pointsMax]. Called by whatever
+  // in-game actions end up granting points (not wired up yet).
+  addPoints(amount) {
+    this.points = THREE.MathUtils.clamp(this.points + amount, 0, CONFIG.pointsMax);
+  }
+
+  // Refill to full and reset the decay clock — called on every place
+  // transition (see main.js's goTo()) so arriving somewhere new always
+  // starts with a full bar instead of carrying over a partly-drained one.
+  refillPoints() {
+    this.points = CONFIG.pointsMax;
+    this._pointsTimer = 0;
+  }
+
   update(dt, colliders) {
     if (!this._locked || this.paused) return;
+
+    this._pointsTimer += dt;
+    while (this._pointsTimer >= CONFIG.pointsDecayInterval) {
+      this._pointsTimer -= CONFIG.pointsDecayInterval;
+      this.points = Math.max(0, this.points - CONFIG.pointsDecayAmount);
+    }
 
     const wish = this.wishDir();
     const moving = wish.lengthSq() > 0;

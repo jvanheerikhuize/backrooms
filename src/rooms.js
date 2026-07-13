@@ -14,12 +14,10 @@ import { CONFIG } from "./config.js";
 import { mulberry32, hashCell } from "./rng.js";
 import { randomObject, getObject } from "./objects.js";
 import { randomSvgProp } from "./svgprops.js";
-import { randomSkin } from "./textures.js";
 
 const RS = CONFIG.specialRooms;
 const SALT_SHAPE = 0x7001;
 const SALT_PROPS = 0x8001;
-const SALT_SKIN = 0x9001; // independent stream so re-skinning doesn't shift prop layouts
 
 // Materials for the festival room's table-top cake slice (see addCake) —
 // simple enough to build from primitives rather than pull in a real asset,
@@ -384,8 +382,15 @@ function placeModel(group, colliders, id, x, z, rotY = 0, scale = 1) {
 // primitive. Returns false (does nothing) if the model cache isn't ready
 // yet, every registered model failed to load, or the room's too crowded to
 // fit it — a slow/broken fetch or a packed room can never break generation.
+//
+// Tracks which exclusive groups (see objects.js's randomObject) this room has
+// already placed, on the room object itself (buildRoomGroup's single call
+// tree is the natural scope — see roomForRegion, which hands out a fresh
+// room object per build, never a cached/shared one) — so e.g. the three
+// Almond Water flavours never turn up more than once combined per room.
 function addResearchProp(group, colliders, rng, room) {
-  const obj = randomObject(rng);
+  room._usedGroups ??= new Set();
+  const obj = randomObject(rng, room._usedGroups);
   if (!obj) return false;
   const spot = randomSpot(rng, room, Math.max(obj.halfX, obj.halfZ) + 0.3, colliders);
   if (!spot) return false;
@@ -396,6 +401,7 @@ function addResearchProp(group, colliders, rng, room) {
   group.add(mesh);
   const px = CONFIG.playerRadius;
   colliders.push({ minX: x - obj.halfX - px, maxX: x + obj.halfX + px, minZ: z - obj.halfZ - px, maxZ: z + obj.halfZ + px });
+  if (obj.group) room._usedGroups.add(obj.group);
   return true;
 }
 
@@ -783,11 +789,9 @@ export function buildRoomGroup(room, materials) {
   const group = new THREE.Group();
   const colliders = [];
 
-  // Some rooms are "leaked" — re-skinned with an alternate wall/floor/ceiling
-  // texture set (see textures.js). Independent RNG stream so this never shifts
-  // the prop layout. Falls back to the base look if no skin loaded.
-  const skinRng = rngForRegion(SALT_SKIN, room.rx, room.ry);
-  const skin = skinRng() < 0.4 ? randomSkin(skinRng) : null;
+  // Room re-skinning (alternate wall/floor/ceiling textures, see textures.js)
+  // is disabled — rooms always use the base procedural materials.
+  const skin = null;
 
   buildWalls(group, colliders, skin ? skin.wall : materials.wall, room);
   if (skin) addSkinnedSurfaces(group, room, skin);

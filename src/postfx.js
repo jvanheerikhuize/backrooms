@@ -29,6 +29,10 @@ const VHSShader = {
     uDistortion: { value: 0.5 }, // intensity within found mode (default moderate)
     uAberration: { value: 0.005 }, // base RGB split at the edges
     uDropout: { value: 0 }, // brief signal-loss bursts, driven per-frame
+    // Flat colour tint (e.g. a low-sanity red/grey flash) — mixed in at
+    // uTintAmount (0 = no tint, 1 = solid uTintColor).
+    uTintColor: { value: new THREE.Vector3(1, 0, 0) },
+    uTintAmount: { value: 0 },
   },
   vertexShader: /* glsl */ `
     varying vec2 vUv;
@@ -48,6 +52,8 @@ const VHSShader = {
     uniform float uDistortion;
     uniform float uAberration;
     uniform float uDropout;
+    uniform vec3 uTintColor;
+    uniform float uTintAmount;
 
     // Cheap hash noise.
     float hash(vec2 p) {
@@ -105,6 +111,9 @@ const VHSShader = {
       float vig = smoothstep(0.85, 0.2, dot(d, d) * (uVignette + uFound * 0.25));
       col *= mix(0.55, 1.0, vig);
 
+      // Flat colour tint — a brief low-sanity red/grey flash over the whole frame.
+      col = mix(col, uTintColor, uTintAmount);
+
       gl_FragColor = vec4(col, 1.0);
     }
   `,
@@ -155,6 +164,20 @@ export function createComposer(renderer, scene, camera) {
     setVignette: (amount) => {
       u.uVignette.value = amount;
     },
+    // Film-grain amount (defaults to 0.12). Driven up as sanity drops — a
+    // dirtier picture rather than anything that dims or occludes the scene,
+    // so it doesn't affect how well the player can actually see.
+    setGrain: (amount) => {
+      u.uGrain.value = amount;
+    },
+    // Flat colour tint over the whole frame — color as [r,g,b] in 0..1,
+    // amount 0..1 (0 = invisible, 1 = solid colour). Used for the brief
+    // low-sanity red/grey flash (see main.js's sanity-loss flash driver).
+    setTint: (color, amount) => {
+      u.uTintColor.value.set(color[0], color[1], color[2]);
+      u.uTintAmount.value = amount;
+    },
+    getTint: () => ({ color: u.uTintColor.value.toArray(), amount: u.uTintAmount.value }),
     setSize: (w, h) => {
       composer.setSize(w, h);
       bloom.setSize(w, h);

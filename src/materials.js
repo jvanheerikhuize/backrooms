@@ -1,19 +1,13 @@
 // Procedural materials for the base Backrooms. Textures are drawn to canvases
 // at runtime so the game ships no external image assets and works offline.
 //
-// The look we are matching is Kane Pixels' "The Backrooms (Found Footage)"
-// Level 0: *grounded and photographic*, not saturated cartoon yellow. Three
-// rules drive everything below:
-//
-//   1. Low saturation. The dread comes from the LIGHT, not the hue. The walls
-//      are a muted, slightly greenish ochre — damp aged wallpaper, not
-//      highlighter yellow.
-//   2. The ceiling is LIGHTER than the walls. It is an off-white suspended
-//      acoustic-tile ceiling on a metal T-bar grid. This single detail is what
-//      makes a corridor read as "1990s office building" instead of "yellow
-//      cube", and it is the thing most Backrooms clones get wrong.
-//   3. Everything is dirty and uneven. Seams, water stains, mildew, scuffs.
-//      Nothing is a flat fill.
+// Stage 1's walls/carpet/ceiling are back to the original sickly-yellow,
+// simple-procedural look (wallpaperTexture/carpetTexture/ceilingTexture
+// below). The Kane Pixels found-footage treatment that briefly replaced it —
+// low-saturation damp wallpaper + a suspended acoustic-tile ceiling — is kept
+// further down as wallpaperTextureKanePixels/carpetTextureKanePixels/
+// ceilingTextureKanePixels in case that look comes back later; just swap
+// which trio createMaterials() below calls.
 //
 // Everything here is intentionally simple and swappable — the leak system
 // (later feature) will mutate these per-section.
@@ -66,11 +60,13 @@ function addGrain(ctx, size, amt, blueBias = 1.0) {
  * (or the anisotropic variant noted per-entry).
  */
 export const TEXTURE_SCALE = {
-  // Horizontal only. Authored as ONE full wall-height slice: the bottom of the
-  // canvas is the floor line (water bleeding UP from the carpet) and the top is
-  // the ceiling line (staining bleeding DOWN). So it must NOT tile vertically.
+  // Horizontal only; world.js always leaves repeat.y at 1 (one tile per wall
+  // height) regardless of which wall texture is active. That's a hard
+  // requirement for wallpaperTextureKanePixels (a directional wall-height
+  // slice — see its own comment); the classic wallpaperTexture currently
+  // wired up tiles freely, so it just reads as a mild vertical stretch.
   //   repeat.x = wallLengthMetres / 2.1
-  //   repeat.y = 1                       (always — one slice per wall height)
+  //   repeat.y = 1
   wall: 2.1,
   wallHeight: CONFIG.wallHeight, // the height that one vertical unit represents
   // Square, tiles freely in both axes.
@@ -85,14 +81,42 @@ export const TEXTURE_SCALE = {
   door: null,
 };
 
-// ── Wallpaper ───────────────────────────────────────────────────────────────
+// ── Wallpaper (classic) ──────────────────────────────────────────────────────
+// Faint vertical-striped, blotchy wallpaper in sickly yellow — Stage 1's
+// original look, restored after the Kane Pixels rewrite (see
+// wallpaperTextureKanePixels below, kept for later use).
+function wallpaperTexture() {
+  const { c, ctx } = makeCanvas(256);
+  ctx.fillStyle = hex(CONFIG.colors.wallpaper);
+  ctx.fillRect(0, 0, 256, 256);
+
+  // Subtle vertical stripes.
+  for (let x = 0; x < 256; x += 8) {
+    ctx.fillStyle = x % 16 === 0 ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.03)";
+    ctx.fillRect(x, 0, 4, 256);
+  }
+  // Damp blotches / stains.
+  for (let i = 0; i < 40; i++) {
+    const r = 6 + Math.random() * 26;
+    ctx.fillStyle = `rgba(40,30,0,${0.02 + Math.random() * 0.05})`;
+    ctx.beginPath();
+    ctx.arc(Math.random() * 256, Math.random() * 256, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 4;
+  return tex;
+}
+
+// ── Wallpaper (Kane Pixels, saved for later) ─────────────────────────────────
 // Damp, aged commercial wallpaper in a muted ochre/mustard-tan — desaturated,
 // leaning slightly greenish-grey. Built up in layers, dirtiest last:
 //   base fill → vertical stripe weave → strip seams every ~0.52 m →
 //   mildew mottling → water bleed from the floor line → staining along the
 //   ceiling line → fine grain.
 // Authored as one full wall-height slice (canvas bottom = floor).
-function wallpaperTexture() {
+function wallpaperTextureKanePixels() {
   const S = 512;
   const { c, ctx } = makeCanvas(S);
   ctx.fillStyle = hex(CONFIG.colors.wallpaper);
@@ -206,12 +230,34 @@ function wallpaperTexture() {
   return tex;
 }
 
-// ── Carpet ──────────────────────────────────────────────────────────────────
+// ── Carpet (classic) ──────────────────────────────────────────────────────────
+// Grainy, damp carpet — Stage 1's original look, restored after the Kane
+// Pixels rewrite (see carpetTextureKanePixels below, kept for later use).
+function carpetTexture() {
+  const { c, ctx } = makeCanvas(256);
+  ctx.fillStyle = hex(CONFIG.colors.carpet);
+  ctx.fillRect(0, 0, 256, 256);
+  const img = ctx.getImageData(0, 0, 256, 256);
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const n = (Math.random() - 0.5) * 40;
+    d[i] += n;
+    d[i + 1] += n;
+    d[i + 2] += n * 0.6;
+  }
+  ctx.putImageData(img, 0, 0);
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 4;
+  return tex;
+}
+
+// ── Carpet (Kane Pixels, saved for later) ────────────────────────────────────
 // Damp, dirty mustard-brown short commercial loop pile. Darker and a little
 // more saturated than the walls, which is what makes the walls read as "lit"
 // and the floor as "the ground". Mottled and blotchy, with darker moisture
 // patches, over a fine directional fibre noise.
-function carpetTexture() {
+function carpetTextureKanePixels() {
   const S = 512;
   const { c, ctx } = makeCanvas(S);
   ctx.fillStyle = hex(CONFIG.colors.carpet);
@@ -261,7 +307,23 @@ function carpetTexture() {
   return tex;
 }
 
-// ── Ceiling ─────────────────────────────────────────────────────────────────
+// ── Ceiling (classic) ─────────────────────────────────────────────────────────
+// Stage 1's original ceiling was a flat, untextured colour (no map at all).
+// world.js now expects every surface material to carry a `map` (it sets
+// `.map.repeat` for the streaming chunks), so this is a flat-filled canvas
+// standing in for that solid colour — visually identical to the old plain
+// material. See ceilingTextureKanePixels below (kept for later use) for the
+// full acoustic-tile treatment this replaced.
+function ceilingTexture() {
+  const { c, ctx } = makeCanvas(256);
+  ctx.fillStyle = hex(CONFIG.colors.ceiling);
+  ctx.fillRect(0, 0, 256, 256);
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
+// ── Ceiling (Kane Pixels, saved for later) ───────────────────────────────────
 // THE detail that sells Kane Pixels: a suspended mineral-fibre acoustic tile
 // ceiling on an exposed metal T-bar grid. Off-white / pale grey and clearly
 // LIGHTER than the walls.
@@ -270,7 +332,7 @@ function carpetTexture() {
 // module is right. Grid lines are drawn centred on the canvas edges and the
 // midlines, so half a T-bar on each edge joins up with its neighbour when the
 // texture repeats — no double-thick seams.
-function ceilingTexture() {
+function ceilingTextureKanePixels() {
   const S = 512;
   const { c, ctx } = makeCanvas(S);
   const base = CONFIG.colors.ceiling;
@@ -644,7 +706,7 @@ export function createMaterials() {
   const wall = new THREE.MeshStandardMaterial({
     map: wallTex,
     color: 0xffffff,
-    roughness: 0.92, // aged paper drinks light; almost no sheen
+    roughness: 0.85,
     metalness: 0.0,
   });
 
@@ -661,13 +723,10 @@ export function createMaterials() {
     metalness: 0.0,
   });
 
-  // Suspended acoustic tile ceiling. Deliberately LIGHTER than the walls — it
-  // catches the fluorescent light and is the main reason the space reads as an
-  // office building rather than a yellow box.
   const ceiling = new THREE.MeshStandardMaterial({
     map: ceilingTex,
     color: 0xffffff,
-    roughness: 0.95, // mineral fibre is dead matte
+    roughness: 0.9,
     metalness: 0.0,
   });
 

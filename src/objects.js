@@ -228,6 +228,43 @@ export const OBJECT_REGISTRY = [
     targetSize: 0.15,
     roundFootprint: true,
   },
+  // group: "almond-water" — see randomObject()'s excludeGroups param. All
+  // three flavours are mutually exclusive within a room (rooms.js's
+  // addResearchProp threads a per-room used-groups set through), so a room
+  // never ends up with more than one can.
+  {
+    id: "almond-water-coconut",
+    file: "/models/gltf/almond_water_coconut.glb",
+    format: "gltf",
+    label: "Almond Water can — Coconut",
+    flavor: "Coconut",
+    category: "research",
+    group: "almond-water",
+    targetSize: 0.54,
+    roundFootprint: true,
+  },
+  {
+    id: "almond-water-original",
+    file: "/models/gltf/almond_water_original.glb",
+    format: "gltf",
+    label: "Almond Water can — original",
+    flavor: "original",
+    category: "research",
+    group: "almond-water",
+    targetSize: 0.54,
+    roundFootprint: true,
+  },
+  {
+    id: "almond-water-dragonfruit",
+    file: "/models/gltf/almond_water_dragonfruit.glb",
+    format: "gltf",
+    label: "Almond Water can — Dragonfruit",
+    flavor: "Dragonfruit",
+    category: "research",
+    group: "almond-water",
+    targetSize: 0.54,
+    roundFootprint: true,
+  },
 ];
 
 const stlLoader = new STLLoader();
@@ -306,7 +343,7 @@ function loadOne(entry) {
         dims.halfX = inscribed;
         dims.halfZ = inscribed;
       }
-      cache.set(entry.id, { object3D, ...dims });
+      cache.set(entry.id, { object3D, id: entry.id, group: entry.group, ...dims });
     })
     .catch((err) => {
       // A missing/broken model must never break world generation — just skip
@@ -328,8 +365,15 @@ export function preloadObjects() {
 // that as "skip this placement", not an error. Scoped to category "research"
 // so furniture models (table, chair, crate, shelf, barrel) — placed for a
 // specific purpose via getObject() — don't also turn up as random clutter.
-export function randomObject(rng) {
-  const ids = OBJECT_REGISTRY.filter((e) => e.category === "research" && cache.has(e.id)).map((e) => e.id);
+//
+// `excludeGroups` (optional Set of group names) filters out any entry whose
+// `group` is already in it — e.g. the three Almond Water flavours share
+// group "almond-water" so at most one of them turns up per room (see
+// rooms.js's addResearchProp, which populates this set as it places things).
+export function randomObject(rng, excludeGroups) {
+  const ids = OBJECT_REGISTRY.filter(
+    (e) => e.category === "research" && cache.has(e.id) && !(excludeGroups && e.group && excludeGroups.has(e.group)),
+  ).map((e) => e.id);
   if (ids.length === 0) return null;
   return cache.get(ids[Math.floor(rng() * ids.length)]);
 }
