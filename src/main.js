@@ -31,6 +31,7 @@ const cutsceneHud = document.getElementById("cutscene-hud");
 const ccStamp = cutsceneHud ? cutsceneHud.querySelector(".cc-stamp") : null;
 const staminaEl = document.getElementById("stamina");
 const staminaFill = document.getElementById("stamina-fill");
+const staminaLabelEl = document.getElementById("stamina-label");
 const pointsFill = document.getElementById("points-fill");
 const inventoryEl = document.getElementById("inventory");
 const inventoryGrid = inventoryEl ? inventoryEl.querySelector(".inv-grid") : null;
@@ -416,6 +417,7 @@ function updateStamina() {
   const show = player.isLocked && (player.stamina < 0.999 || player.sprinting);
   staminaEl.classList.toggle("visible", show);
   staminaEl.classList.toggle("exhausted", player.exhausted);
+  if (staminaLabelEl) staminaLabelEl.classList.toggle("visible", show);
 }
 
 // Points meter: always visible, ticks down over time (see player.js).
